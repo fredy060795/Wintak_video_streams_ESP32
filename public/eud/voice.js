@@ -257,20 +257,67 @@
     $('vcPtt').classList.toggle('rx', !!m.talker && !me);
     $('vcTalker').textContent = me ? 'You are talking …' : m.talker ? `🔊 ${m.talker}` : 'Channel free';
   }
+  // on the radio net from the start (you hear the others even with the panel closed); ⏻ leaves it until switched on again
+  const OFF_KEY = 'eud.voiceOff';
+  const isOff = () => { try { return localStorage.getItem(OFF_KEY) === '1'; } catch (e) { return false; } };
+  function ensure() {
+    if (v) return v;
+    v = new TakVoice({
+      callsign: E.profile.callsign || E.profile.uid, uid: E.profile.uid,
+      onState: setState, onRoster: roster,
+      onFloor: m => { floor(m); if (m.talker && !m.me && $('voiceWin').classList.contains('hidden')) E.toast('🔊 ' + m.talker + ' (VoIP)', 3000); },
+      onBusy: t => E.toast(`${t} is talking – wait until the channel is free.`),
+      onError: msg => E.toast(msg, 6000),
+    });
+    v.connect();
+    return v;
+  }
   function open() {
     $('voiceWin').classList.remove('hidden');
-    if (!v) {
-      v = new TakVoice({
-        callsign: E.profile.callsign || E.profile.uid, uid: E.profile.uid,
-        onState: setState, onRoster: roster, onFloor: floor,
-        onBusy: t => E.toast(`${t} is talking – wait until the channel is free.`),
-        onError: msg => E.toast(msg, 6000),
-      });
-      v.connect();
-    }
+    try { localStorage.removeItem(OFF_KEY); } catch (e) { /* private mode */ }
+    ensure();
   }
   function close() { $('voiceWin').classList.add('hidden'); }
-  function off() { if (v) v.close(); v = null; setState('off', 'off'); close(); }
+  function off() {
+    if (v) v.close();
+    v = null;
+    try { localStorage.setItem(OFF_KEY, '1'); } catch (e) { /* private mode */ }
+    setState('off', 'off');
+    close();
+  }
+  setInterval(() => { if (!v && !isOff() && E.serverOnline()) ensure(); }, 3000);
+
+  // ---------------- permissions at the start: microphone (bar in the header, eud.js) and sound ----------------
+  // browsers play sound only after a tap: the first tap anywhere unlocks it, so incoming VoIP is heard right away
+  let micState = 'unknown', micAsked = false;
+  const unlock = () => { if (!isOff()) ensure().audioCtx(); };
+  document.addEventListener('pointerdown', unlock, { once: true, capture: true });
+  (async () => {
+    try {
+      const p = await navigator.permissions.query({ name: 'microphone' });
+      micState = p.state;
+      p.onchange = () => { micState = p.state; E.updatePermBar(); };
+    } catch (e) { /* no permissions API: asked once with ALLOW */ }
+    E.updatePermBar();
+  })();
+  // called from the ALLOW tap in the header bar (within the tap, as browsers require)
+  async function allow() {
+    micAsked = true;
+    unlock();
+    try {
+      const st = await navigator.mediaDevices.getUserMedia({ audio: true });
+      st.getTracks().forEach(t => t.stop());
+      micState = 'granted';
+    } catch (e) { micState = 'denied'; }
+    E.updatePermBar();
+    return micState === 'granted';
+  }
+  window.eudVoice = {
+    allow,
+    // the bar asks for the microphone until it is allowed (without the permissions API: once per start)
+    needMic: () => micState === 'denied' || (micState !== 'granted' && !micAsked),
+    micDenied: () => micState === 'denied',
+  };
 
   const tile = document.querySelector('.tile[data-tb="voice"]');
   if (tile) tile.addEventListener('click', () => { E.closeSheets(); if ($('voiceWin').classList.contains('hidden')) open(); else close(); });

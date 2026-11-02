@@ -2581,16 +2581,18 @@ startHeading(true);
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 let permAsked = false;
 function updatePermBar() {
-  // Android app: Android keeps the app's permissions – no bar after the start, only when location was really refused
-  const need = (!compassAllowed && !nativeApp) || geoDenied;
+  // Android app: Android keeps the app's permissions – no bar after the start, only when something was really refused
+  const voice = window.eudVoice;
+  const mic = !!voice && (nativeApp ? voice.micDenied() : voice.needMic());
+  const need = (!compassAllowed && !nativeApp) || geoDenied || mic;
   $('permBar').classList.toggle('hidden', !need);
   if (!need) return;
   if (nativeApp) {
-    $('permText').textContent = 'Location is not allowed for the TAKweb app – your position is not sent. ALLOW opens the app settings (Permissions → Location → "Allow all the time").';
+    $('permText').textContent = `${[geoDenied && 'Location', mic && 'Microphone (VoIP)'].filter(Boolean).join(' and ')} not allowed for the TAKweb app. ALLOW opens the app settings (Permissions${geoDenied ? ' → Location → "Allow all the time"' : ' → Microphone'}).`;
     return;
   }
-  $('permText').textContent = !compassAllowed && geoDenied ? 'Allow location and compass – otherwise your position and direction are not shown or sent.'
-    : geoDenied ? 'Location is not allowed – your position is not sent.' : 'Allow the compass – for your direction and the view cone of your camera.';
+  const parts = [geoDenied && 'location', !compassAllowed && 'compass', mic && 'microphone'].filter(Boolean);
+  $('permText').textContent = `Allow ${parts.join(', ').replace(/, ([^,]*)$/, ' and $1')} – ` + [geoDenied && 'your position is sent', !compassAllowed && 'your direction is shown', mic && 'VoIP and voice messages work right away'].filter(Boolean).join(', ') + '.';
   if (permAsked && geoDenied) $('permText').textContent += isIOS ? ' Still refused: Settings → Privacy → Location Services → Safari Websites (or Bluefy) → "While Using".'
     : ' Still refused: tap the lock icon next to the address → Permissions → Location.';
 }
@@ -2603,6 +2605,7 @@ $('permGo').addEventListener('click', () => {
     return;
   }
   permAsked = true;
+  if (window.eudVoice) window.eudVoice.allow(); // microphone and sound, within the tap
   askCompass().then(updatePermBar); // must be called within the tap (iPhone)
   if (geoDenied) startGeo();
   setTimeout(updatePermBar, 1500);
@@ -2611,6 +2614,8 @@ $('permClose').addEventListener('click', () => $('permBar').classList.add('hidde
 updatePermBar();
 // app: should the WebView still want the compass allowed, quietly with the first tap (no bar)
 if (nativeApp && !compassAllowed) document.addEventListener('pointerup', () => askCompass(), { once: true, capture: true });
+// app: Android asks for the microphone once (Capacitor) – quietly with the first tap, the bar only if it was refused
+if (nativeApp) document.addEventListener('pointerup', () => { if (window.eudVoice && window.eudVoice.needMic()) window.eudVoice.allow(); }, { once: true, capture: true });
 
 // tapping the compass: a map rotated by hand goes back to north; if already north up, heading up (HDG)
 $('compass').addEventListener('click', () => {
@@ -2879,7 +2884,7 @@ function videoItems() {
     .filter(v => v.url && !v.stale).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-window.eud = { sendChat, videoItems, browserVideoUrl, $, store, profile, toast, setMsg, openPopup, closePopup, rnd, esc, map, handleCot, removeItem, askTrust, postJson, getServers: () => servers, saveServers, applyProfilePrefs, addTakMaps, forwardCot: xml => sendCot(xml, false), fmtDist, distance, bearing, askCompass, askDrone, destPoint, serverOnline,
+window.eud = { sendChat, updatePermBar, videoItems, browserVideoUrl, $, store, profile, toast, setMsg, openPopup, closePopup, rnd, esc, map, handleCot, removeItem, askTrust, postJson, getServers: () => servers, saveServers, applyProfilePrefs, addTakMaps, forwardCot: xml => sendCot(xml, false), fmtDist, distance, bearing, askCompass, askDrone, destPoint, serverOnline,
   sendCot, cotTime, saveProfile, closeSheets, setTool, setPitch, items, stopMeasure: () => { if (measuring) toggleMeasure(); }, getMe: () => me, battery: () => battery };
 
 loadPicture();
