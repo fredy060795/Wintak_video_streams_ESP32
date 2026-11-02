@@ -840,6 +840,9 @@ function renderChat() {
       a.className = 'cm-audio';
       txt.textContent = m.text.replace(vm[1], '').trim();
       d.append(a);
+    } else if (window.eudVoicePlayer) {
+      const pl = window.eudVoicePlayer(m.id); // voice message that came over the mesh (Codec 2, voice.js)
+      if (pl) d.append(pl);
     }
     log.append(d);
   }
@@ -904,16 +907,17 @@ $('btnChat').addEventListener('click', () => ($('chatWin').classList.contains('h
 $('chatClose').addEventListener('click', closeChat);
 $('chatMin').addEventListener('click', e => { e.stopPropagation(); $('chatWin').classList.toggle('min'); chatToEnd(); });
 document.querySelector('.chat-head').addEventListener('click', e => { if (e.target.closest('button')) return; $('chatWin').classList.remove('min'); });
-// a chat message into the current channel (TAK server and Meshtastic) – false if nobody can get it
-function sendChat(text, { mesh = true } = {}) {
+// a chat message into the current channel (TAK server and Meshtastic) – { xml, uid, msgId, conv }, or null if nobody
+// can get it. server: false = only here and over the mesh (e.g. a voice message without internet)
+function sendChat(text, { mesh = true, server = true } = {}) {
   const x = channelInfo(chatConv);
   const to = chatRecipients(x);
-  if (to && !to.length) { toast(`Nobody of team ${x.name} is online right now.`); return false; }
+  if (to && !to.length) { toast(`Nobody of team ${x.name} is online right now.`); return null; }
   const xml = chatXml(text, x);
   handleCot(xml, { local: true });
-  sendCot(xml, true);
+  if (server) sendCot(xml, true);
   if (mesh) document.dispatchEvent(new CustomEvent('eud-chat-out', { detail: { text, xml, conv: x } })); // Meshtastic (mesh.js)
-  return true;
+  return { xml, uid: (/uid="([^"]+)"/.exec(xml) || [])[1], msgId: (/messageId="([^"]+)"/.exec(xml) || [])[1], conv: x };
 }
 $('chatForm').addEventListener('submit', e => {
   e.preventDefault();

@@ -267,6 +267,8 @@
       }
     } else if (p.portnum === P.PORT.FORWARDER) {
       receiveForwarder(p).catch(() => {});
+    } else if (p.portnum === P.PORT.PRIVATE) {
+      receiveVoice(p);
     } else if (p.portnum === P.PORT.TEXT) {
       // TAK users send their chat as a TAK packet too (and the plugin ignores their text) -> skip duplicates
       if (n.takUid || (p.to !== P.BROADCAST && p.to !== myNode)) return;
@@ -589,10 +591,81 @@
     }));
   }
   setInterval(() => { const t = Date.now() - SEEN_MS; for (const m of [seenServer, seenMesh]) for (const [k, v] of m) if (v < t) m.delete(k); }, 60000);
+
+  // ---------------- Voice messages (Codec 2) over LoRa, port 256 ----------------
+  // voice.js records and encodes; here the packets go out with a pause between them (airtime), missing ones are asked
+  // for again; a gateway with internet also puts the message on the TAK server (recording + chat link).
+  const voiceAsm = new P.VoiceAssembler();
+  const voiceOut = new Map(); // id -> { packets, at } (for requests of missing packets)
+  let voiceChain = Promise.resolve();
+  function sendVoicePackets(list) {
+    voiceChain = voiceChain.then(async () => {
+      for (const pk of list) {
+        if (state !== 'connected') return;
+        if (window.__meshTest) (window.__meshTest.voice = window.__meshTest.voice || []).push(pk);
+        await send(P.PORT.PRIVATE, pk);
+        await sleep(window.__meshTest ? 50 : BLOCK_GAP);
+      }
+    }).catch(e => msg('Voice message over LoRa: ' + e.message));
+    return voiceChain;
+  }
+  window.eudMesh = {
+    canSend: () => shouldSend(),
+    // to: '' = all, otherwise the UID of the recipient; id = the GeoChat messageId (16 hex)
+    sendVoice({ id, to = '', bits, ms }) {
+      const packets = P.voicePackets({ id, from: profile.uid, callsign: profile.callsign || profile.uid, to, ms, bits });
+      voiceOut.set(id, { packets, at: Date.now() });
+      return sendVoicePackets(packets);
+    },
+  };
+  function receiveVoice(p) {
+    const v = P.parseVoice(p.payload);
+    if (!v) return;
+    if (v.kind === 1) { // somebody misses packets of our message
+      const o = voiceOut.get(v.id);
+      if (o) sendVoicePackets([...v.data].filter(i => o.packets[i]).map(i => o.packets[i]));
+      return;
+    }
+    const m = voiceAsm.add(v);
+    if (!m || m.from === profile.uid) return;
+    if (!m.to || m.to === profile.uid) document.dispatchEvent(new CustomEvent('eud-voice-in', { detail: m }));
+    if (m.to !== profile.uid) voiceUp(m).catch(e => msg('Voice message to the TAK server: ' + e.message));
+  }
+  setInterval(() => {
+    if (state !== 'connected') return;
+    for (const st of voiceAsm.stale()) send(P.PORT.PRIVATE, P.voiceRequest(st.id, st.missing)).catch(() => {});
+    for (const [id, o] of voiceOut) if (Date.now() - o.at > 10 * 60000) voiceOut.delete(id);
+  }, 5000);
+  // gateway: decoded, uploaded as a recording, and the chat message with the link to the TAK server (like bridgeUp)
+  async function voiceUp(m) {
+    if (!cfg.bridge || !window.eud.serverOnline() || !window.Codec2 || !window.TakVoice) return;
+    const uid = `GeoChat.${m.from}.${m.to || P.ALL_CHAT}.${m.id}`;
+    const k = { type: 'b-t-f', uid, key: 'c|' + uid, pli: false };
+    if (pendingUp.has(k.key)) return;
+    pendingUp.add(k.key);
+    await jitter(1000, 6000);
+    pendingUp.delete(k.key);
+    if (!window.eud.serverOnline() || seenIn(seenServer, k)) return; // another gateway was quicker
+    seenServer.set(k.key, Date.now());
+    const pcm = await window.Codec2.decode(m.bits, m.mode);
+    const res = await fetch('/api/eud/voicemsg', { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: window.TakVoice.wav(pcm) });
+    if (!res.ok) throw new Error('upload ' + res.status);
+    const { url } = await res.json();
+    const secs = Math.round(m.ms / 1000);
+    const xml = P.chatCot({ senderUid: m.from, senderCallsign: m.callsign, msgId: m.id, text: `🎤 Voice message ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} ${url}`, toUid: m.to });
+    let out = marked(xml);
+    if (m.to) {
+      const it = window.eud.items.get(m.to);
+      const call = it && it.c && it.c.callsign;
+      out = out.replace('</detail>', `<marti><dest ${call ? `callsign="${window.eud.esc(call)}"` : `uid="${window.eud.esc(m.to)}"`}/></marti></detail>`);
+    }
+    window.eud.forwardCot(out);
+  }
+
   // automated tests only (set before the page loads): a fake radio
   if (window.__meshTest) {
     window.__meshTest.api = {
-      fromMesh, slimCot, handle, connect(sent) { toRadio = { writeValue: async b => { sent.push(b); } }; state = 'connected'; },
+      fromMesh, slimCot, handle, receiveVoice, connect(sent) { toRadio = { writeValue: async b => { sent.push(b); } }; state = 'connected'; },
     };
   }
 

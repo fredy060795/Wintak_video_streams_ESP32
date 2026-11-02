@@ -437,8 +437,16 @@ stay in front with the screen on (the browser stops the microphone in the backgr
 
 🎤 next to the chat input: tap to record (max. 30 s), ➤ sends, ✕ discards. The recording goes to the TAKweb server
 (kept 3 days like the chat) and a normal chat message with the link goes out – TAKweb shows a player right in the chat,
-ATAK/WinTAK users open the link. Needs the connection to the TAK server (internet); over Meshtastic only the message with
-the link arrives so far (voice over LoRa would need the Codec 2 codec).
+ATAK/WinTAK users open the link.
+
+**Over Meshtastic (LoRa):** with a connected radio that sends, the voice message also goes over LoRa – compressed with
+**Codec 2** at 1300 bit/s (10 s ≈ 1.6 KB, 3 s = 4 packets ~1.6 s apart), to All or as a direct message (like text: no
+team/group rooms). Without internet it goes over LoRa only (max. 15 s). Receivers get "🎤 Voice message (mesh)" with a
+▶ button; lost packets are asked for again automatically. A gateway with internet puts it on the TAK server as well
+(recording + link). Who gets it over both ways sees it once (same message id).
+
+Codec 2 (David Rowe, LGPL-2.1) runs as WebAssembly in the browser, built from the official sources:
+`tools/codec2-wasm/` (build script, licence, notes) – bit-identical to the native Codec 2 (test).
 
 ## HQ (operations room)
 
