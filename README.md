@@ -525,13 +525,13 @@ If ports 80/443 are free, Caddy can fetch the certificates instead: `docker comp
 
 ### Without Docker
 
-Requirements: Node.js 18 or newer, ffmpeg (for HLS/MPEG-TS, optional) and a certificate. The service
+Requirements: Node.js 20 or newer (recommended: 22 LTS), ffmpeg (for HLS/MPEG-TS, optional) and a certificate. The service
 `deploy/helm-camera.service` starts the server with HTTPS directly on port 5036; alternatively behind a
 reverse proxy (examples: `deploy/Caddyfile`, `deploy/nginx.conf`).
 
 ```sh
 sudo useradd --system helmcam
-sudo git clone https://github.com/fredy060795/Wintak_video_streams_ESP32 /opt/helm-camera
+sudo git clone https://github.com/fredy060795/5036-TAKweb /opt/helm-camera
 cd /opt/helm-camera && sudo npm ci --omit=dev
 sudo cp deploy/helm-camera.service /etc/systemd/system/   # adjust the domains in it
 sudo systemctl daemon-reload && sudo systemctl enable --now helm-camera
@@ -560,6 +560,11 @@ variables to `TAKWEB_*` (e.g. `TAKWEB_APK_URL`). The Android app has a new app I
 uninstall the old app on the phones, install TAKweb and open the invitation link again (or scan the QR code).
 
 ## For developers
+
+Node.js 20 or newer (22 LTS recommended). Run the commands in the TAKweb folder (the one with `package.json`), and
+`npm install` again after every update – otherwise the server stops with a message which packages are missing.
+On Ubuntu/Mint the distribution's Node.js is often too old (18):
+`curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt-get install -y nodejs`
 
 ```sh
 npm install

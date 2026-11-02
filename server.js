@@ -9,6 +9,8 @@
 //
 // Settings via environment variables, see README.md.
 
+require('./lib/preflight').check(); // Node.js version and installed packages – before anything else is loaded
+
 const http = require('http');
 const https = require('https');
 const fs = require('fs');
