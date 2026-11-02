@@ -48,7 +48,7 @@ const config = {
   // certificate (TLS_CERT) the server runs directly on the network, then it is off by default.
   trustProxy: process.env.TRUST_PROXY !== undefined ? process.env.TRUST_PROXY !== '0' : !process.env.TLS_CERT,
   // Android app: built by GitHub Actions (mobile/, .github/workflows/android.yml) – or an own build / fork
-  apkUrl: process.env.WEBTAK_APK_URL || 'https://github.com/fredy060795/5036-WebTAK/releases/download/android/TAKweb.apk',
+  apkUrl: process.env.WEBTAK_APK_URL || 'https://github.com/fredy060795/5036-TAKweb/releases/download/android/TAKweb.apk',
 };
 
 const log = (...args) => console.log(new Date().toISOString(), ...args);
