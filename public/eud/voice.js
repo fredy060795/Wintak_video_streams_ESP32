@@ -291,13 +291,14 @@
 
   // ---------------- voice messages in the chat ----------------
   const MSG_MS = 30000;
+  const MIC_SVG = $('chatMic').innerHTML;
   let rec = null;
   const fmtMs = ms => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
   function recUi(on) {
     $('chatMic').classList.toggle('rec', on);
     $('recBar').classList.toggle('hidden', !on);
     $('chatForm').classList.toggle('recording', on);
-    $('chatMic').textContent = on ? '➤' : '🎤';
+    $('chatMic').innerHTML = on ? '<svg viewBox="0 0 24 24" width="22" height="22" fill="#fff"><path d="M3 20l18-8L3 4v6l12 2-12 2z"/></svg>' : MIC_SVG;
     $('chatMic').title = on ? 'Send the voice message' : 'Voice message (tap to record, tap again to send)';
   }
   async function recStart() {
@@ -312,7 +313,7 @@
     const r = rec; rec = null;
     recUi(false);
     const { pcm, ms } = r.stop();
-    if (ms < 700) return E.toast('Too short – tap 🎤, speak, tap ➤ to send.');
+    if (ms < 700) return E.toast('Too short – tap the microphone, speak, tap send.');
     try {
       const res = await fetch('/api/eud/voicemsg', { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: wav(pcm) });
       const d = await res.json().catch(() => ({}));
