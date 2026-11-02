@@ -767,6 +767,18 @@ test('map tiles through our own server, with cache', async () => {
   }
 });
 
+test('mission tracks: admin API (without OpenTAKServer nothing is recorded)', async () => {
+  let r = await api('tracks');
+  assert.equal(r.status, 200);
+  assert.equal(r.data.available, false);
+  assert.deepEqual(r.data.missions, []);
+  r = await api('tracks', { method: 'POST', body: { name: 'Exercise' } });
+  assert.equal(r.status, 400);
+  assert.match(r.data.error, /OpenTAKServer/);
+  assert.equal((await api('tracks/0123456789ab/points')).status, 404);
+  assert.equal((await fetch(base + '/api/admin/tracks')).status, 401, 'admin only');
+});
+
 test('helpers: may approve and create users, but not change settings', async () => {
   const { createMockOts } = require('./ots-mock');
   const mock = createMockOts();

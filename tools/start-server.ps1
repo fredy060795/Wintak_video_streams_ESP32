@@ -71,8 +71,8 @@ if (-not $node) {
 }
 $nodeVersion = (& node --version).Trim()
 Say "Node.js $nodeVersion found."
-if ([int]($nodeVersion.TrimStart('v').Split('.')[0]) -lt 18) {
-    Say 'Node.js is too old (at least version 18 needed). Please install Node.js LTS from https://nodejs.org.' 'Red'
+if ([int]($nodeVersion.TrimStart('v').Split('.')[0]) -lt 20) {
+    Say 'Node.js is too old (at least version 20 needed). Please install Node.js LTS from https://nodejs.org.' 'Red'
     exit 1
 }
 

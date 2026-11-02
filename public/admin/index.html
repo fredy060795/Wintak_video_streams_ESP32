@@ -10,6 +10,7 @@
 <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
 <meta name="theme-color" content="#0b0e12">
 <link rel="stylesheet" href="/assets/style.css">
+<link rel="stylesheet" href="/eud/vendor/leaflet.css">
 <link rel="stylesheet" href="admin.css">
 </head>
 <body>
@@ -93,6 +94,7 @@
     <a href="#teams" data-nav="teams" class="admin-only"><span class="ic">⬢</span>Teams &amp; visibility</a>
     <a href="#links" data-nav="links"><span class="ic">🔗</span>Links &amp; QR codes</a>
     <a href="#mapclear" data-nav="mapclear" class="admin-only"><span class="ic">🧹</span>Clear map (all devices)</a>
+    <a href="#tracks" data-nav="tracks" class="admin-only"><span class="ic">◷</span>Mission tracks &amp; replay <span class="badge nb live" id="navRec"></span></a>
     <div class="side-h">TAK server</div>
     <a href="#otsusers" data-nav="otsusers"><span class="ic">🪪</span>OTS users</a>
     <a href="#otsgroups" data-nav="otsgroups" class="admin-only"><span class="ic">◫</span>Groups</a>
@@ -404,6 +406,45 @@
       <p class="mut small" id="mcState"></p>
     </section>
 
+    <section class="card" data-view="tracks">
+      <div class="row between"><h2>Mission tracks <span class="mut small">(record every user's position, replay afterwards)</span></h2><button id="trReload" type="button">⟳</button></div>
+      <p class="mut small">While a mission is recorded, TAKweb listens to your TAK server and keeps the position of <b>every</b> user –
+        ATAK, iTAK, WinTAK, TAKweb and Meshtastic users passed on by a gateway. Afterwards replay the mission on the map
+        (start/end, every user's track, speed up the time) or export it as GPX/KML (Google Earth replays KML with its time slider).</p>
+      <div class="row" id="trStartRow">
+        <div style="flex:1;min-width:220px"><label>Mission name</label><input id="trName" maxlength="80" placeholder="e.g. Exercise North – 2 Nov"></div>
+        <div class="actions-end"><button type="button" class="pri" id="trStart">● Start recording</button></div>
+      </div>
+      <div class="tr-live hidden" id="trLive">
+        <span class="tr-dot"></span> <b id="trLiveName"></b> <span class="mut" id="trLiveInfo"></span>
+        <button type="button" class="danger" id="trStop">■ Stop recording</button>
+      </div>
+      <p class="mut small" id="trSource"></p>
+      <p class="msg" id="trMsg"></p>
+      <div class="table-wrap"><table class="streams" id="trTable"><thead><tr><th>Mission</th><th>Start</th><th>End</th><th>Duration</th><th>Users</th><th>Points</th><th></th></tr></thead><tbody></tbody></table></div>
+      <p class="mut small hidden" id="trEmpty">No missions recorded yet.</p>
+
+      <div class="tr-replay hidden" id="trReplay">
+      <div class="row between"><h3 id="trRTitle">Replay</h3><button type="button" id="trClose">✕ Close</button></div>
+      <div class="tr-wrap">
+        <div id="trMap" class="tr-map"></div>
+        <div class="tr-side">
+          <div class="mut small" id="trRInfo"></div>
+          <div class="tr-users" id="trUsers"></div>
+        </div>
+      </div>
+      <div class="tr-ctrl">
+        <button type="button" id="trPlay" title="Play / pause">▶</button>
+        <select id="trSpeed" title="Speed">
+          <option value="1">1×</option><option value="10">10×</option><option value="60" selected>60×</option><option value="300">300×</option><option value="1200">1200×</option>
+        </select>
+        <input type="range" id="trTime" min="0" max="1000" value="0">
+        <span class="tr-clock" id="trClock"></span>
+        <label class="check small"><input type="checkbox" id="trTrail" checked> whole track</label>
+      </div>
+      </div>
+    </section>
+
     <section class="card" data-view="federation">
       <div class="row between"><h2>Federation <span class="mut small">(TAK servers exchange data)</span></h2><button id="fdReload" type="button">⟳</button></div>
       <p class="mut small">TAKweb connects to every server below with its own certificate and passes data on in <b>all directions</b>: live data
@@ -521,5 +562,7 @@
 <script src="ots.js"></script>
 <script src="federation.js"></script>
 <script src="mapclear.js"></script>
+<script src="/eud/vendor/leaflet.js"></script>
+<script src="tracks.js"></script>
 </body>
 </html>

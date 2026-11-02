@@ -195,3 +195,25 @@ table.kv td { padding: 4px 0; word-break: break-all; }
 /* version next to the name: shows whether the current page was loaded after an update */
 .top h1 .ver { font-size: 11px; color: var(--mut); letter-spacing: 0; }
 .mc-cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 4px 16px; margin: 8px 0 12px; }
+
+/* Mission tracks (tracks.js) */
+.tr-live { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; margin: 8px 0; border: 1px solid #7a2a2a; border-radius: 6px; background: rgba(229, 83, 75, .08); }
+.tr-live button { margin-left: auto; }
+.tr-dot { width: 10px; height: 10px; border-radius: 50%; background: #e5534b; animation: tr-blink 1.2s infinite; }
+@keyframes tr-blink { 50% { opacity: .25; } }
+.tr-rec { color: #e5534b; font-size: 12px; font-weight: 600; }
+.tr-replay { margin-top: 16px; border-top: 1px solid var(--bd); padding-top: 12px; }
+.tr-wrap { display: grid; grid-template-columns: 1fr 260px; gap: 12px; margin-top: 8px; }
+.tr-map { height: 60vh; min-height: 320px; border-radius: 6px; background: #1b2028; }
+.tr-side { max-height: 60vh; overflow-y: auto; }
+.tr-users { display: grid; gap: 8px; margin-top: 8px; }
+.tr-user { padding: 6px 8px; border: 1px solid var(--bd); border-radius: 6px; }
+.tr-user button { margin-top: 4px; padding: 2px 8px; }
+.tr-sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-left: 4px; vertical-align: -1px; border: 1px solid #000; }
+.tr-ctrl { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.tr-ctrl select, .tr-ctrl button { width: auto; margin: 0; }
+.tr-ctrl input[type=range] { flex: 1; min-width: 160px; width: auto; margin: 0; }
+.tr-clock { font-variant-numeric: tabular-nums; min-width: 130px; }
+.leaflet-tooltip.tr-label { background: rgba(0, 0, 0, .7); color: #fff; border: 0; box-shadow: none; padding: 1px 5px; font-size: 12px; }
+.leaflet-tooltip.tr-label::before { display: none; }
+@media (max-width: 760px) { .tr-wrap { grid-template-columns: 1fr; } .tr-map { height: 50vh; } .tr-side { max-height: none; } }
