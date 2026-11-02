@@ -1,5 +1,6 @@
 # Android app (mobile/): builds the APK. On main it is published as the release "android" –
-# the WebTAK server links to it (/download/webtak.apk → releases/download/android/WebTAK.apk).
+# the TAKweb server links to it (/download/webtak.apk → releases/download/android/TAKweb.apk). Also uploaded as
+# WebTAK.apk (the old name) – servers from before the rename link to that one.
 # Pull requests only build it (check that it compiles).
 name: Android app
 
@@ -52,24 +53,25 @@ jobs:
           chmod +x gradlew
           if [ -n "$WEBTAK_KEYSTORE_FILE" ]; then
             ./gradlew --no-daemon assembleRelease
-            cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/WebTAK.apk"
+            cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/TAKweb.apk"
           else
             ./gradlew --no-daemon assembleDebug
-            cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/WebTAK.apk"
+            cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/TAKweb.apk"
           fi
       - uses: actions/upload-artifact@v4
         with:
-          name: WebTAK-apk
-          path: WebTAK.apk
+          name: TAKweb-apk
+          path: TAKweb.apk
       - name: Publish (release "android")
         if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          notes="WebTAK for Android, version 1.0.${{ github.run_number }} (${GITHUB_SHA::7}). Install WebTAK.apk, then open the invitation link from your admin and tap 'Open in the WebTAK app'."
+          notes="TAKweb for Android, version 1.0.${{ github.run_number }} (${GITHUB_SHA::7}). Install TAKweb.apk, then open the invitation link from your admin and tap 'Open in the TAKweb app'."
           if gh release view android >/dev/null 2>&1; then
             gh release edit android --notes "$notes"
           else
-            gh release create android --title "WebTAK for Android" --notes "$notes" --latest=false
+            gh release create android --title "TAKweb for Android" --notes "$notes" --latest=false
           fi
-          gh release upload android WebTAK.apk --clobber
+          cp TAKweb.apk WebTAK.apk
+          gh release upload android TAKweb.apk WebTAK.apk --clobber

@@ -1,4 +1,4 @@
-// Admin: federation – TAK servers exchange live data and data packages through WebTAK (lib/federation.js).
+// Admin: federation – TAK servers exchange live data and data packages through TAKweb (lib/federation.js).
 'use strict';
 
 (() => {

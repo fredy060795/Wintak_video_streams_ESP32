@@ -1,4 +1,4 @@
-/* WebTAK Admin – dark design like ATAK (always dark, square, ATAK blue) */
+/* TAKweb Admin – dark design like ATAK (always dark, square, ATAK blue) */
 :root, :root:root {
   color-scheme: dark;
   --bg: #11151b; --fg: #f2f4f7; --card: #1d2128; --mut: #9aa3ad; --acc: #33b5e5; --acc-fg: #04121a;

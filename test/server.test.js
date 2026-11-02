@@ -919,13 +919,13 @@ test('managing the TAK server: all OTS users, create, import, role, groups, miss
     // Meshtastic
     const psk = (await api('ots/mesh/psk')).data.psk;
     assert.ok(psk);
-    assert.equal((await api('ots/mesh', { method: 'POST', body: { name: 'WebTAK', psk, modemPreset: 'LONG_FAST', region: 'EU_868' } })).status, 200);
+    assert.equal((await api('ots/mesh', { method: 'POST', body: { name: 'TAKweb', psk, modemPreset: 'LONG_FAST', region: 'EU_868' } })).status, 200);
     assert.equal(mock.state.mesh[0].lora_region, 'EU_868');
     assert.equal((await api('ots/mesh', { method: 'POST', body: { name: 'way too long!' } })).status, 400);
     const ch = (await api('ots/mesh')).data.channels[0];
     await api('ots/mesh?url=' + encodeURIComponent(ch.url), { method: 'DELETE' });
     assert.equal(mock.state.mesh.length, 0);
-    // delete (also from the WebTAK management)
+    // delete (also from the TAKweb management)
     await api('ots/users/bravo_2', { method: 'DELETE' });
     assert.equal(mock.state.users.bravo_2, undefined);
     assert.equal((await api('takusers/state')).data.users.some(u => u.username === 'bravo_2'), false);
@@ -936,7 +936,7 @@ test('managing the TAK server: all OTS users, create, import, role, groups, miss
   }
 });
 
-test('WebTAK video: HLS feeds through our own server (playlist rewritten, segments, video only, target checked)', async () => {
+test('TAKweb video: HLS feeds through our own server (playlist rewritten, segments, video only, target checked)', async () => {
   const up = http.createServer((req, res) => {
     if (req.url === '/live/cam/index.m3u8') { res.writeHead(200, { 'Content-Type': 'application/vnd.apple.mpegurl' }); return res.end('#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:2,\nseg1.ts\n#EXTINF:2,\nhttp://other.example/x.ts\n'); }
     if (req.url === '/live/cam/seg1.ts') { res.writeHead(200, { 'Content-Type': 'video/mp2t' }); return res.end(Buffer.from('TSDATA')); }
@@ -994,11 +994,11 @@ test('TAK access: mails – the user never gets an admin link, the admin notific
     const toUser = sink.mails.map(flat).filter(m => /^To: mike@example\.com/m.test(m));
     const toAdmin = sink.mails.map(flat).filter(m => /^To: chief@example\.com/m.test(m));
     assert.equal(toAdmin.length, 1, 'admin gets exactly one notification');
-    assert.match(toAdmin[0], /WebTAK access requested: Mail Test/);
+    assert.match(toAdmin[0], /TAKweb access requested: Mail Test/);
     assert.match(toAdmin[0], /^https:\/\/admin\.test:5036\/admin\/#users$/m, 'admin notification with a link to the admin area (configured address, admin domain)');
     assert.doesNotMatch(toAdmin[0], /evil\.example/, 'never from the Host header of the request');
     for (const m of toUser) assert.doesNotMatch(m, /\/admin/i, 'no admin link to the user');
-    assert.ok(sink.mails.map(flat).every(m => !/^To: mike@example\.com/m.test(m) || !/WebTAK access requested/.test(m)), 'admin notification never to the user');
+    assert.ok(sink.mails.map(flat).every(m => !/^To: mike@example\.com/m.test(m) || !/TAKweb access requested/.test(m)), 'admin notification never to the user');
     // admin address equals the request's address: no admin notification to that address
     await api('takusers/registration', { method: 'POST', body: { open: true, emailConfirm: false, codeword: '' } });
     const before = sink.mails.length;
@@ -1006,8 +1006,8 @@ test('TAK access: mails – the user never gets an admin link, the admin notific
     assert.equal(r.data.status, 'pending');
     await sleep(400);
     const newMails = sink.mails.slice(before).map(flat);
-    assert.equal(newMails.filter(m => /WebTAK access requested/.test(m)).length, 0);
-    assert.equal(newMails.filter(m => /your registration request for WebTAK has been received/.test(m)).length, 1);
+    assert.equal(newMails.filter(m => /TAKweb access requested/.test(m)).length, 0);
+    assert.equal(newMails.filter(m => /your registration request for TAKweb has been received/.test(m)).length, 1);
     // clean up for the following tests
     await api('public-url', { method: 'POST', body: { url: '' } });
     const st = await api('takusers/state');
@@ -1108,7 +1108,7 @@ test('TAK access: registration -> approval with callsign -> access page with QR 
     // ATAK setup package: everything included, nothing to type; QR = https link to the package page
     const pk = await fetch(base + '/api/access/atak-package.zip?t=' + token);
     assert.equal(pk.status, 200);
-    assert.match(pk.headers.get('content-disposition'), /WebTAK-Alpha_10\.zip/);
+    assert.match(pk.headers.get('content-disposition'), /TAKweb-Alpha_10\.zip/);
     const files = require('../lib/tak').unzip(Buffer.from(await pk.arrayBuffer()));
     assert.equal(files['certs/truststore.p12'].toString(), 'P12DATA');
     const pref = files['certs/config.pref'].toString();
@@ -1119,7 +1119,7 @@ test('TAK access: registration -> approval with callsign -> access page with QR 
     assert.equal((await fetch(base + '/access/atak.html')).status, 200);
     assert.match((await pub('atak-link', { headers: { 'X-Access-Token': token } })).data.link, /^tak:\/\/com\.atakmap\.app\/enroll/);
     // drone address in the web EUD without typing: connected to our OTS with the certificate of the user ->
-    // WebTAK hands over the login; another certificate / not connected -> nothing
+    // TAKweb hands over the login; another certificate / not connected -> nothing
     const drone = await droneLogin(otsUrl, 'alpha_10');
     assert.equal(drone.username, 'alpha_10');
     assert.equal(drone.password, mock.state.users.alpha_10.password);

@@ -1,6 +1,6 @@
 {
   "appId": "at.webtak.eud",
-  "appName": "WebTAK",
+  "appName": "TAKweb",
   "webDir": "www",
   "android": {
     "allowMixedContent": false

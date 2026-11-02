@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>WebTAK</title>
+<title>TAKweb</title>
 <style>
   :root { --bg: #14161a; --card: #1e2229; --line: #333a44; --text: #fff; --mut: #9aa3ae; --green: #1f6f3a; --green-line: #2e8b4a; --red: #e5534b; }
   * { box-sizing: border-box; }
@@ -28,20 +28,20 @@
 </head>
 <body>
 <main>
-  <h1>WebTAK</h1>
+  <h1>TAKweb</h1>
   <p class="sub">TAK client for Android – map, team positions, chat, video and Meshtastic.</p>
 
   <div class="card">
     <h2>Invited by your admin?</h2>
     <ol>
       <li>Open the invitation or your access page in the browser.</li>
-      <li>Tap <b>“Open in the WebTAK app”</b> – server and login are taken over automatically.</li>
+      <li>Tap <b>“Open in the TAKweb app”</b> – server and login are taken over automatically.</li>
     </ol>
   </div>
 
   <div class="card">
-    <h2>Or scan the WebTAK QR code</h2>
-    <p>The code from your access page (tab WebTAK) or from your admin.</p>
+    <h2>Or scan the TAKweb QR code</h2>
+    <p>The code from your access page (tab TAKweb) or from your admin.</p>
     <button type="button" id="scan">SCAN QR CODE</button>
     <div id="cam"><video id="video" playsinline muted></video><div class="frame"></div></div>
     <label class="btn ghost" for="img">QR CODE FROM A PHOTO</label>
@@ -51,8 +51,8 @@
 </main>
 <script src="jsQR.js"></script>
 <script>
-  // first start (no server yet): only a scanned WebTAK code is taken; the native part (WebTakPlugin) checks that it
-  // really is a WebTAK server, keeps it and starts the app again on it. No free address entry – nothing else is possible.
+  // first start (no server yet): only a scanned TAKweb code is taken; the native part (WebTakPlugin) checks that it
+  // really is a TAKweb server, keeps it and starts the app again on it. No free address entry – nothing else is possible.
   const $ = id => document.getElementById(id);
   const msg = (t, ok) => { $('msg').textContent = t; $('msg').className = ok ? 'ok' : ''; };
   let stream = null, busy = false;
@@ -67,10 +67,10 @@
   async function take(code) {
     if (busy) return;
     code = String(code || '').trim();
-    if (/^tak:\/\//i.test(code)) return msg('That is the ATAK code – scan the WebTAK code (access page, tab WebTAK).');
+    if (/^tak:\/\//i.test(code)) return msg('That is the ATAK code – scan the TAKweb code (access page, tab TAKweb).');
     let url;
-    try { url = new URL(code); } catch (e) { return msg('That is not a WebTAK code.'); }
-    if (url.protocol !== 'https:' || !/^\/(eud|access)\b/.test(url.pathname)) return msg('That is not a WebTAK code.');
+    try { url = new URL(code); } catch (e) { return msg('That is not a TAKweb code.'); }
+    if (url.protocol !== 'https:' || !/^\/(eud|access)\b/.test(url.pathname)) return msg('That is not a TAKweb code.');
     if (url.pathname.startsWith('/access')) url = new URL(url.origin + '/eud/' + url.hash);
     busy = true;
     stop();
@@ -79,7 +79,7 @@
       await window.Capacitor.Plugins.WebTak.setServer({ url: url.href }); // the app restarts on the server
     } catch (e) {
       busy = false;
-      msg(e.message || 'No WebTAK server at this address.');
+      msg(e.message || 'No TAKweb server at this address.');
     }
   }
 

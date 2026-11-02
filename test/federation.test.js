@@ -138,7 +138,7 @@ test('live data goes from one server to the other – marked, once, not back', a
 
 test('no loops, no duplicates, no server-specific messages', async () => {
   const before = devA.got.length + devB.got.length;
-  // already passed through a WebTAK federation (e.g. a second bridge): not passed on again
+  // already passed through a TAKweb federation (e.g. a second bridge): not passed on again
   devA.send(ev('LOOP-1', undefined, undefined, '<__webtakfed id="other" from="X"/>'));
   // the same event on both servers (e.g. sent by a device to both): passed on only once
   devA.send(ev('DUP-1', undefined, '2026-10-25T11:00:00.000Z'));

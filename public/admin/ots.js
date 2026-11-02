@@ -11,7 +11,7 @@
   const empty = (tb, cols, text) => tb.append(el('tr', {}, el('td', { colspan: String(cols), class: 'mut', text })));
   let users = [];
   let groups = [];
-  let teams = null; // { teams, roles } from the WebTAK management
+  let teams = null; // { teams, roles } from the TAKweb management
 
   async function guard(msgEl, fn, okText) {
     try {
@@ -68,13 +68,13 @@
         btn('Groups …', '', () => editGroups(u)),
         btn('Password …', '', () => setPassword(u)),
         admin ? null : btn('Delete', 'danger', async () => {
-          if (!confirm(`Delete user "${u.username}" in OTS?${u.managed ? '\n\nThe WebTAK management is removed as well.' : ''}`)) return;
+          if (!confirm(`Delete user "${u.username}" in OTS?${u.managed ? '\n\nThe TAKweb management is removed as well.' : ''}`)) return;
           await guard($('ouMsg'), () => oapi(`users/${enc(u.username)}`, { method: 'DELETE' }), 'Deleted.');
           loadUsers();
           if (window.loadTakUsers) window.loadTakUsers();
         }));
       tb.append(el('tr', {}, td('User', el('b', { text: u.username })), td('Role', role), td('Active', active), td('Groups', grp),
-        td('Devices', devs), td('Last login', el('span', { class: 'small', text: fmt(u.lastLogin) })), td('WebTAK', managed), td('', actions)));
+        td('Devices', devs), td('Last login', el('span', { class: 'small', text: fmt(u.lastLogin) })), td('TAKweb', managed), td('', actions)));
     }
   }
 
@@ -131,9 +131,9 @@
       ['team', 'Team', { options: (t.teams || []).map(x => [x.id, `${x.name} (${x.color})`]) }],
       ['role', 'Role in ATAK', { options: (t.roles || ['Team Member']).map(r => [r, r]) }],
       ['email', 'E-mail (optional)', { type: 'email' }],
-      ['newPassword', 'Set a new password (otherwise WebTAK does not know it and the access page shows none)', { type: 'checkbox' }],
+      ['newPassword', 'Set a new password (otherwise TAKweb does not know it and the access page shows none)', { type: 'checkbox' }],
       ['password', 'New password (empty = randomly generated)', { maxlength: '64' }],
-      ['syncGroups', 'Set groups from WebTAK teams (otherwise the OTS groups stay as they are)', { type: 'checkbox' }],
+      ['syncGroups', 'Set groups from TAKweb teams (otherwise the OTS groups stay as they are)', { type: 'checkbox' }],
     ]);
     const m = el('p', { class: 'msg' });
     f.append(el('div', { class: 'row', style: 'margin-top:12px' }, el('button', { class: 'pri', type: 'submit', text: 'Import' })), m);
@@ -145,11 +145,11 @@
       const r = await guard(m, () => oapi(`users/${enc(u.username)}/import`, { method: 'POST', body }));
       if (!r) return;
       closeModal();
-      setMsg($('ouMsg'), `"${u.username}" is now managed in WebTAK (Users & requests).`, true);
+      setMsg($('ouMsg'), `"${u.username}" is now managed in TAKweb (Users & requests).`, true);
       loadUsers();
       if (window.loadTakUsers) window.loadTakUsers();
     };
-    openModal('Import into WebTAK: ' + u.username, f);
+    openModal('Import into TAKweb: ' + u.username, f);
   }
 
   function setPassword(u) {
@@ -244,7 +244,7 @@
       // OTS: users with groups only see missions of their IN groups – without a group the mission is invisible to them
       const grp = m.groups && m.groups.length
         ? el('span', { class: 'small', text: m.groups.length >= groups.length && groups.length > 1 ? 'all' : m.groups.join(', ') })
-        : el('span', { class: 'small', style: 'color:var(--warn,#e0a020)', text: '⚠ none – invisible in ATAK/WebTAK' });
+        : el('span', { class: 'small', style: 'color:var(--warn,#e0a020)', text: '⚠ none – invisible in ATAK/TAKweb' });
       tb.append(el('tr', {}, td('Mission', el('b', { text: m.name + (m.password ? ' 🔒' : '') })), td('Description', el('span', { class: 'small', text: m.description })),
         td('Groups', grp),
         td('Content', el('span', { class: 'small', text: `${m.items} points · ${m.files} files` })), td('Created', el('span', { class: 'small', text: fmt(m.created) })),
@@ -266,7 +266,7 @@
       if (ok) { closeModal(); loadMissions(); }
     } });
     openModal('Groups: ' + m.name,
-      el('p', { class: 'mut small', text: 'Only users with one of these groups (IN) see the mission in ATAK/WebTAK. No selection = all groups.' }),
+      el('p', { class: 'mut small', text: 'Only users with one of these groups (IN) see the mission in ATAK/TAKweb. No selection = all groups.' }),
       box, el('div', { class: 'row', style: 'margin-top:10px' }, save), out);
   }
   $('omForm').addEventListener('submit', async e => {
@@ -274,7 +274,7 @@
     const f = e.target;
     const body = { name: f.elements.namedItem('name').value.trim(), description: f.description.value, password: f.password.value, creatorUid: f.creatorUid.value,
       groups: [...$('omGroups').querySelectorAll('input:checked')].map(x => x.value) };
-    const ok = await guard($('omMsg'), () => oapi('missions', { method: 'POST', body }), 'Mission created – visible in ATAK/WebTAK under Data Sync.');
+    const ok = await guard($('omMsg'), () => oapi('missions', { method: 'POST', body }), 'Mission created – visible in ATAK/TAKweb under Data Sync.');
     if (ok) { f.reset(); loadMissions(); }
   });
   $('omReload').addEventListener('click', loadMissions);
@@ -291,16 +291,16 @@
     $('ofRtmp').textContent = `rtmp://${h}:1935/<path>?user=<user>&pass=<password>`;
     $('ofRtspPush').textContent = `rtsp://<user>:<password>@${h}:8554/<path>`;
     $('ofSrt').textContent = `srt://${h}:8890?streamid=publish:<path>:<user>:<password>`;
-    // recognise feeds of WebTAK cameras (path from the "TAK path" column above)
+    // recognise feeds of TAKweb cameras (path from the "TAK path" column above)
     const cams = new Map((window.streams || (typeof streams !== 'undefined' ? streams : [])).filter(x => x.tak && x.tak.pushed).map(x => [x.tak.pushed, x]));
     r.feeds.sort((a, b) => (cams.has(b.path) - cams.has(a.path)) || a.path.localeCompare(b.path));
     for (const f of r.feeds) {
       const rtsp = r.rtspHost ? `rtsp://${r.rtspHost}:8554/${f.path}` : '';
       const cam = cams.get(f.path);
       const origin = cam
-        ? el('span', { class: 'badge ' + (cam.receiving ? 'live' : 'off'), text: 'WebTAK: ' + (cam.label || cam.user) + (cam.receiving ? ' · live' : '') })
+        ? el('span', { class: 'badge ' + (cam.receiving ? 'live' : 'off'), text: 'TAKweb: ' + (cam.label || cam.user) + (cam.receiving ? ' · live' : '') })
         : el('span', { class: 'small', text: 'external' });
-      tb.append(el('tr', {}, td('Path', el('b', { text: f.path })), td('Origin', origin), td('Source', el('span', { class: 'small', text: cam ? 'WebTAK camera (HLS)' : (f.source || '(camera pushes itself)') })),
+      tb.append(el('tr', {}, td('Path', el('b', { text: f.path })), td('Origin', origin), td('Source', el('span', { class: 'small', text: cam ? 'TAKweb camera (HLS)' : (f.source || '(camera pushes itself)') })),
         td('For ATAK', rtsp ? el('div', { class: 'link' }, ...Object.values(copyField(rtsp))) : el('span', { class: 'mut', text: '–' })),
         td('', cam ? el('span', { class: 'mut small', text: 'control above' }) : btn('Delete', 'danger', async () => {
           if (!confirm(`Delete feed "${f.path}"?`)) return;

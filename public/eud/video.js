@@ -64,7 +64,7 @@
         body: JSON.stringify({ name: profile.callsign || 'EUD', unit: profile.team, source: 'eud' }),
       });
     } catch (e) {
-      throw new Error(`WebTAK server not reachable for the video sign-up (${e.message}) – check the internet connection and try again.`);
+      throw new Error(`TAKweb server not reachable for the video sign-up (${e.message}) – check the internet connection and try again.`);
     }
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Sign-up at the server failed.');
@@ -648,7 +648,7 @@
     fillDroneServers();
     if (await droneFromAccess()) return;
     if (droneFromLogin()) return;
-    // registered user, connected with the certificate: WebTAK hands over the login – nothing to type
+    // registered user, connected with the certificate: TAKweb hands over the login – nothing to type
     if (await window.eud.askDrone()) droneFromLogin();
   }
   $('droneBox').addEventListener('toggle', () => { if ($('droneBox').open) droneReady(); });

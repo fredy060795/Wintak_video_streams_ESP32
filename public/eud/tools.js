@@ -1,4 +1,4 @@
-// WebTAK EUD – tools like ATAK: drawing (line, rectangle, polygon, circle), Bloodhound (line to a target
+// TAKweb EUD – tools like ATAK: drawing (line, rectangle, polygon, circle), Bloodhound (line to a target
 // with distance) and a top bar the user puts together himself.
 // Settings are stored in the profile (localStorage), like the map tiles they survive every update.
 'use strict';

@@ -1,7 +1,7 @@
 {
-  "name": "WebTAK",
-  "short_name": "WebTAK",
-  "description": "WebTAK – TAK client in the browser: map and situational awareness",
+  "name": "TAKweb",
+  "short_name": "TAKweb",
+  "description": "TAKweb – TAK client in the browser: map and situational awareness",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

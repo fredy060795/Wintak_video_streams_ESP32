@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>WebTAK Access – Set up ATAK</title>
+<title>TAKweb Access – Set up ATAK</title>
 <meta name="theme-color" content="#0b0e12">
 <meta name="referrer" content="no-referrer">
 <link rel="icon" href="/assets/brand/favicon.ico" sizes="any">
@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="/assets/tak.css">
 </head>
 <body>
-<header class="top"><img src="/assets/brand/webtak-logo-160.png" alt=""><h1>WebTAK <span class="mut">Access</span></h1></header>
+<header class="top"><img src="/assets/brand/takweb-logo-160.png" alt=""><h1>TAKweb <span class="mut">Access</span></h1></header>
 <main class="wrap">
   <p class="msg" id="msg"></p>
   <section class="card hidden" id="card">
@@ -23,7 +23,7 @@
       <li><b>Open the downloaded file with ATAK</b>
         <span class="mut small">– tap the download notification (or open it in the <i>Files / Downloads</i> app) and choose <b>ATAK</b>.
           Alternatively in ATAK: <span class="path">☰</span> → <span class="path">Import</span> → <span class="path">Local SD</span> →
-          <span class="path">Download</span> → <span class="path" id="fname">WebTAK-….zip</span>.</span></li>
+          <span class="path">Download</span> → <span class="path" id="fname">TAKweb-….zip</span>.</span></li>
       <li>ATAK imports the package, requests its certificate and connects. A <b style="color:var(--green)">green</b> indicator
         (bottom right) means you are online.</li>
     </ol>
@@ -58,7 +58,7 @@ if (location.hash) history.replaceState(null, '', location.pathname); // do not 
   const q = '?t=' + encodeURIComponent(token);
   $('cs').textContent = me.d.callsign;
   $('dl').href = '/api/access/atak-package.zip' + q;
-  $('fname').textContent = 'WebTAK-' + String(me.d.callsign || me.d.username).replace(/[^\w.-]+/g, '_') + '.zip';
+  $('fname').textContent = 'TAKweb-' + String(me.d.callsign || me.d.username).replace(/[^\w.-]+/g, '_') + '.zip';
   $('back').href = '/access/#t=' + encodeURIComponent(token);
   $('card').classList.remove('hidden');
   const link = await fetch('/api/access/atak-link', { headers: h }).then(r => r.json()).catch(() => ({}));

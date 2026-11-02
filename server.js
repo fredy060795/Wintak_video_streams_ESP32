@@ -1,4 +1,4 @@
-// WebTAK / Helm Camera Streams – server
+// TAKweb / Helm Camera Streams – server
 //
 //   Phone app:   https://<domain>/app/#u=<user>&s=<streamId>&k=<key>             (via QR code)
 //   Stream:      https://<domain>/<user>/<streamId>                             (MJPEG, link for ATAK/WinTAK)
@@ -48,7 +48,7 @@ const config = {
   // certificate (TLS_CERT) the server runs directly on the network, then it is off by default.
   trustProxy: process.env.TRUST_PROXY !== undefined ? process.env.TRUST_PROXY !== '0' : !process.env.TLS_CERT,
   // Android app: built by GitHub Actions (mobile/, .github/workflows/android.yml) – or an own build / fork
-  apkUrl: process.env.WEBTAK_APK_URL || 'https://github.com/fredy060795/5036-WebTAK/releases/download/android/WebTAK.apk',
+  apkUrl: process.env.WEBTAK_APK_URL || 'https://github.com/fredy060795/5036-WebTAK/releases/download/android/TAKweb.apk',
 };
 
 const log = (...args) => console.log(new Date().toISOString(), ...args);
@@ -268,7 +268,7 @@ function serveVendor(res, name) {
   fs.createReadStream(file).pipe(res);
 }
 
-const tiles = new TileCache(path.join(config.dataDir, 'tiles'), 'WebTAK/1.0 (TAK-Client; Kachel-Zwischenspeicher)', process.env.TILE_URL_OVERRIDE);
+const tiles = new TileCache(path.join(config.dataDir, 'tiles'), 'TAKweb/1.0 (TAK-Client; Kachel-Zwischenspeicher)', process.env.TILE_URL_OVERRIDE);
 
 async function serveTile(res, rel) {
   const t = TileCache.parse(rel);
@@ -331,7 +331,7 @@ function mailAdmin(subject, text, notTo) {
 const accessLink = (req, u) => `${publicBase(req)}/access/#t=${u.token}`;
 
 function requestMail(u, link) {
-  return `Hello ${u.name},\n\nthank you – your registration request for WebTAK has been received.\n\n`
+  return `Hello ${u.name},\n\nthank you – your registration request for TAKweb has been received.\n\n`
     + `Name: ${u.name}\n${u.unit ? `Unit: ${u.unit}\n` : ''}${u.requestedCallsign ? `Requested callsign: ${u.requestedCallsign}\n` : ''}\n`
     + 'What happens next:\n1. An administrator reviews your request.\n2. As soon as it is approved you get another e-mail.\n'
     + '3. Your login details, QR codes and a step-by-step guide are then shown on your personal status page:\n\n'
@@ -340,15 +340,15 @@ function requestMail(u, link) {
 
 // New request: notification in the admin window and mail to the admin address
 function newRequest(u, suffix) {
-  const text = `WebTAK access requested: ${u.name}${u.unit ? ' – ' + u.unit : ''}${suffix}`;
+  const text = `TAKweb access requested: ${u.name}${u.unit ? ' – ' + u.unit : ''}${suffix}`;
   hub.event('tak', 'takreg', text);
   // Link to the admin area only in this mail to the admin address – and only from a trusted source:
   // the configured address (ADMIN_URL/public address) or the one the admin was logged in under.
   // Never from the Host header of the request (that is controlled by whoever registers).
   const base = resetBase() || ((store.data.takVideo || {}).lastBase) || '';
-  mailAdmin('WebTAK – new registration request',
+  mailAdmin('TAKweb – new registration request',
     `${text}\nE-mail: ${u.email}\n${u.requestedCallsign ? `Requested callsign: ${u.requestedCallsign}\n` : ''}\n`
-    + 'Please review it in the WebTAK admin under "Users & requests" and approve or decline it'
+    + 'Please review it in the TAKweb admin under "Users & requests" and approve or decline it'
     + (base ? `:\n${base}/admin/#users\n` : '.\n'), u.email);
 }
 
@@ -372,13 +372,13 @@ async function handleAccessApi(req, res, route) {
     const link = accessLink(req, u);
     let mailed;
     if (u.status === 'unconfirmed') {
-      mailed = await mailUser(u.email, 'WebTAK – please confirm your registration request',
-        `Hello ${u.name},\n\nwe received your registration request for WebTAK.\nPlease confirm your e-mail address with this link:\n\n${link}&c=${u.emailToken}\n\n`
+      mailed = await mailUser(u.email, 'TAKweb – please confirm your registration request',
+        `Hello ${u.name},\n\nwe received your registration request for TAKweb.\nPlease confirm your e-mail address with this link:\n\n${link}&c=${u.emailToken}\n\n`
         + `After that an administrator will review your request. You will get another e-mail as soon as your access is approved.\n\n`
         + `If you did not request access, simply ignore this e-mail.\n`);
     } else {
       newRequest(u, '');
-      mailed = await mailUser(u.email, 'WebTAK – registration request received', requestMail(u, link));
+      mailed = await mailUser(u.email, 'TAKweb – registration request received', requestMail(u, link));
     }
     return json(res, 200, { status: u.status, token: u.token, mailed, email: maskEmail(u.email) });
   }
@@ -410,7 +410,7 @@ async function handleAccessApi(req, res, route) {
     try { truststore = await takUsers.ots().truststore(); } catch (e) { return json(res, 502, { error: 'Truststore not available: ' + e.message }); }
     const team = takUsers.team(u.team);
     const pkg = atakPackage({
-      host, port: o.streamPort, description: 'WebTAK ' + host, username: u.username, password: u.password,
+      host, port: o.streamPort, description: 'TAKweb ' + host, username: u.username, password: u.password,
       caPassword: o.truststorePassword || 'atakatak', callsign: u.callsign, team: team.color, role: u.role, truststore,
     });
     return send(res, 200, pkg.data, 'application/zip', { 'Content-Disposition': `attachment; filename="${pkg.filename}"`, 'Cache-Control': 'no-store' });
@@ -655,15 +655,15 @@ async function handleTakAdmin(req, res, route) {
   let u;
   if (action === 'approve') {
     u = await takUsers.approve(id, body);
-    const sent = await mailUser(u.email, 'WebTAK – your access is ready',
-      `Hello ${u.name},\n\nyour WebTAK access has been approved.\n\nCallsign: ${u.callsign}\n\nOpen this page for your login details, QR codes and the step-by-step guide.\nRecommended: start WebTAK right from that page – it runs in the browser on any phone, nothing to install:\n\n${accessLink(req, u)}\n\nKeep this link private.\n`);
+    const sent = await mailUser(u.email, 'TAKweb – your access is ready',
+      `Hello ${u.name},\n\nyour TAKweb access has been approved.\n\nCallsign: ${u.callsign}\n\nOpen this page for your login details, QR codes and the step-by-step guide.\nRecommended: start TAKweb right from that page – it runs in the browser on any phone, nothing to install:\n\n${accessLink(req, u)}\n\nKeep this link private.\n`);
     return json(res, 200, { ok: true, user: takUsers.adminView(u), mailed: sent, link: accessLink(req, u) });
   }
   if (action === 'update') u = await takUsers.update(id, body);
   else if (action === 'reject') {
     u = await takUsers.reject(id);
-    mailUser(u.email, 'WebTAK – registration request declined',
-      `Hello ${u.name},\n\nyour registration request for WebTAK was declined by an administrator.\nIf you think this is a mistake, please contact your administrator.\n`);
+    mailUser(u.email, 'TAKweb – registration request declined',
+      `Hello ${u.name},\n\nyour registration request for TAKweb was declined by an administrator.\nIf you think this is a mistake, please contact your administrator.\n`);
   }
   else if (action === 'block') u = await takUsers.block(id);
   else if (action === 'unblock') u = await takUsers.unblock(id);
@@ -698,8 +698,8 @@ function takPorts() {
 
 // '' = allowed, otherwise the reason
 // Videos of the own TAK server (OTS): like the OTS web UI over its /hls/ with the login (jwt) of the OTS
-// admin set in WebTAK – MediaMTX itself (port 8888) usually is not reachable/redirects. Only for devices that are
-// connected to a TAK server through WebTAK right now; the browser never sees the login.
+// admin set in TAKweb – MediaMTX itself (port 8888) usually is not reachable/redirects. Only for devices that are
+// connected to a TAK server through TAKweb right now; the browser never sees the login.
 function otsMedia(req) {
   if (!takUsers.otsConfigured()) return null;
   const ip = clientIp(req);
@@ -746,7 +746,7 @@ async function klvCandidates(req, raw) {
   return out;
 }
 
-// ---------------- Federation: TAK servers exchange data through WebTAK ----------------
+// ---------------- Federation: TAK servers exchange data through TAKweb ----------------
 // store.data.federation = { id, enabled, intervalMin, local: { enabled, cot, packages, cert… }, peers: [{ id, name, host, ports, cert…, cot, packages, enabled }] }
 function fedConfig() {
   const f = store.data.federation || (store.data.federation = {});
@@ -852,7 +852,7 @@ async function handleFederation(req, res, route, method) {
         await fedCert(p, { host, enrollPort: p.enrollPort, username: String(body.username || '').trim(), password: String(body.password || ''), p12: body.p12, p12Password: body.p12Password, fingerprint: body.fingerprint });
       } catch (e) { return untrusted(e) || json(res, 400, { error: e.message }); }
     }
-    if (!p.certPem) return json(res, 400, { error: 'Enter user and password (or a .p12) – WebTAK requests its own certificate there.' });
+    if (!p.certPem) return json(res, 400, { error: 'Enter user and password (or a .p12) – TAKweb requests its own certificate there.' });
     if (fresh) f.peers.push(p);
     store.save();
     federation.apply();
@@ -1028,7 +1028,7 @@ async function handleAdminApi(req, res, route) {
         const link = `${resetBase()}/admin/#reset=${token}`;
         sendMail(store.data.smtp, {
           to: admin.email,
-          subject: 'WebTAK – reset password',
+          subject: 'TAKweb – reset password',
           text: `Hello,\n\nyou can set a new admin password with this link (valid for 1 hour):\n\n${link}\n\nIf you did not request this, ignore this e-mail.\n`,
         }).then(() => log('Reset mail sent')).catch(e => log('Reset mail failed:', e.message));
       } else {
@@ -1161,7 +1161,7 @@ async function handleAdminApi(req, res, route) {
     if (p) url += '#' + new URLSearchParams({ host: p.host, port: p.port, proto: p.proto, enroll: p.enrollPort }).toString();
     return send(res, 200, await QRCode.toString(url, { type: 'svg', margin: 2, errorCorrectionLevel: 'M' }), 'image/svg+xml');
   }
-  // clear the map on all WebTAK devices (after a mission): every device asks its user on the next connection
+  // clear the map on all TAKweb devices (after a mission): every device asks its user on the next connection
   if (route === 'mapclear' && method === 'GET') return json(res, 200, { request: store.data.mapClear || null, devices: takLinks.size });
   if (route === 'mapclear' && method === 'POST') {
     const body = await readJson(req);
@@ -1229,7 +1229,7 @@ async function handleAdminApi(req, res, route) {
     if (!auth.admin.email) throw new Error('Please enter an admin e-mail address first.');
     await sendMail(store.data.smtp, {
       to: auth.admin.email,
-      subject: 'WebTAK – Test',
+      subject: 'TAKweb – Test',
       text: 'SMTP works. Password reset mails and notifications are sent to this address.\n',
     });
     return json(res, 200, { ok: true });
@@ -1409,8 +1409,8 @@ async function handle(req, res) {
   try {
     if (p === '/health') return send(res, 200, 'ok');
     if (p === '/version') return json(res, 200, { version: VERSION });
-    // the Android app checks this before it uses a server (only a WebTAK server, never just any page)
-    if (p === '/api/eud/app') return json(res, 200, { webtak: true, version: VERSION, name: 'WebTAK' });
+    // the Android app checks this before it uses a server (only a TAKweb server, never just any page)
+    if (p === '/api/eud/app') return json(res, 200, { webtak: true, version: VERSION, name: 'TAKweb' });
     if (p === '/ca.crt' && config.testCa) {
       return send(res, 200, fs.readFileSync(config.testCa), 'application/x-x509-ca-cert',
         { 'Content-Disposition': 'attachment; filename="helm-camera-test-ca.crt"' });
@@ -1419,14 +1419,14 @@ async function handle(req, res) {
     if (p === '/download/webtak.apk') {
       const local = path.join(config.dataDir, 'webtak.apk');
       if (fs.existsSync(local)) {
-        res.writeHead(200, { 'Content-Type': 'application/vnd.android.package-archive', 'Content-Disposition': 'attachment; filename="WebTAK.apk"', 'Content-Length': fs.statSync(local).size });
+        res.writeHead(200, { 'Content-Type': 'application/vnd.android.package-archive', 'Content-Disposition': 'attachment; filename="TAKweb.apk"', 'Content-Length': fs.statSync(local).size });
         return fs.createReadStream(local).pipe(res);
       }
       return send(res, 302, '', 'text/plain', { Location: config.apkUrl });
     }
     if (p === '/') {
       if (admin) return send(res, 302, '', 'text/plain', { Location: '/admin/' });
-      return send(res, 200, 'WebTAK');
+      return send(res, 200, 'TAKweb');
     }
     if (p === '/admin') return send(res, 302, '', 'text/plain', { Location: '/admin/' });
     if (p.startsWith('/admin/')) {
@@ -1684,7 +1684,7 @@ server.on('error', e => {
 });
 
 server.listen(config.port, config.bind, () => {
-  log(`WebTAK running on ${config.tlsCert ? 'https' : 'http'}://${config.bind}:${server.address().port}`);
+  log(`TAKweb running on ${config.tlsCert ? 'https' : 'http'}://${config.bind}:${server.address().port}`);
   log(`Version ${VERSION}`);
   log(`Public address: ${config.publicUrl || '(from request)'}${config.adminHost ? ', admin domain: ' + config.adminHost : ''}`);
   log(ffmpegOk ? 'ffmpeg found: HLS and MPEG-TS available' : 'ffmpeg not found: MJPEG only');

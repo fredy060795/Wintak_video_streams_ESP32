@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<title>WebTAK Admin</title>
+<title>TAKweb Admin</title>
 <link rel="icon" href="/assets/brand/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/favicon-32.png">
 <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
@@ -17,7 +17,7 @@
 <!-- Login, forgot password, new password -->
 <div id="authView" class="auth hidden">
   <div class="brand">
-    <img src="/assets/brand/webtak-logo.png" alt="WebTAK">
+    <img src="/assets/brand/takweb-logo.png" alt="TAKweb">
     <div class="brand-sub">Administration</div>
   </div>
   <form class="card" id="loginForm">
@@ -70,15 +70,15 @@
     <button class="pri wide" type="submit">Save</button>
     <p class="msg" id="firstMsg"></p>
   </form>
-  <p class="auth-foot">WebTAK v__WEBTAK_VERSION__ · TAK access, teams and video streams</p>
+  <p class="auth-foot">TAKweb v__WEBTAK_VERSION__ · TAK access, teams and video streams</p>
 </div>
 
 <!-- Overview -->
 <div id="appView" class="hidden">
   <header class="top">
     <button class="navtoggle" id="navToggle" aria-label="Menu">☰</button>
-    <img class="logo" src="/assets/brand/webtak-logo-160.png" alt="">
-    <h1>WebTAK <span class="ver">v__WEBTAK_VERSION__</span> <span class="admin-only">Admin</span><span class="helper-only">Helper</span></h1>
+    <img class="logo" src="/assets/brand/takweb-logo-160.png" alt="">
+    <h1>TAKweb <span class="ver">v__WEBTAK_VERSION__</span> <span class="admin-only">Admin</span><span class="helper-only">Helper</span></h1>
     <div class="row topr">
       <span class="small" id="summary"></span>
       <button id="notifyBtn" class="bell" type="button" title="Notifications: new requests, cameras, live">🔔<span class="nbadge hidden" id="notifyCount"></span></button>
@@ -104,7 +104,7 @@
     <a href="#create" data-nav="create" class="admin-only"><span class="ic">＋</span>Create stream</a>
     <div class="side-h">Settings</div>
     <a href="#ots" data-nav="ots" class="admin-only"><span class="ic">🛰</span>OpenTAKServer &amp; registration</a>
-    <a href="#webtak" data-nav="webtak" class="admin-only"><span class="ic">⌖</span>WebTAK app</a>
+    <a href="#webtak" data-nav="webtak" class="admin-only"><span class="ic">⌖</span>TAKweb app</a>
     <a href="#system" data-nav="system"><span class="ic">⚙</span><span class="admin-only">System (admin, e-mail)</span><span class="helper-only">My password</span></a>
   </nav>
 
@@ -199,7 +199,7 @@
 
     <section class="card" data-view="video">
       <div class="row between">
-        <h2>Video feeds <span class="mut small">– cameras from WebTAK (phone, helmet camera)</span></h2>
+        <h2>Video feeds <span class="mut small">– cameras from TAKweb (phone, helmet camera)</span></h2>
         <div class="row">
           <input id="filter" placeholder="Search …" class="filter">
           <button id="liveOffAllBtn" class="live-only">All to ready</button>
@@ -207,7 +207,7 @@
         </div>
       </div>
       <div class="takvideo">
-        <label class="check"><input type="checkbox" id="regToggle"> Video from WebTAK/camera app allowed</label>
+        <label class="check"><input type="checkbox" id="regToggle"> Video from TAKweb/camera app allowed</label>
         <label class="check"><input type="checkbox" id="liveToggle"> Admin puts streams live</label>
         <label class="check" id="userStartWrap"><input type="checkbox" id="userStartToggle"> Users may start by themselves</label>
       </div>
@@ -231,7 +231,7 @@
           <tbody id="rows"></tbody>
         </table>
       </div>
-      <p class="mut" id="empty">No streams yet. Users start video in WebTAK or sign up with the camera app QR code under "Links &amp; QR codes".</p>
+      <p class="mut" id="empty">No streams yet. Users start video in TAKweb or sign up with the camera app QR code under "Links &amp; QR codes".</p>
     </section>
 
 
@@ -255,9 +255,9 @@
           <div class="link"><input id="joinUrl" readonly><button class="sm" id="joinCopy" type="button">Copy</button></div>
         </div>
         <div class="lcard">
-          <h3>WebTAK app <span class="mut small">– map, chat, video in the browser</span></h3>
-          <img id="eudQr" class="qr-mid" alt="WebTAK QR code" style="cursor:pointer" title="Show large / print">
-          <p class="mut small">For users with access. Video (phone/helmet camera) starts right in WebTAK and appears as a feed in the TAK server automatically.</p>
+          <h3>TAKweb app <span class="mut small">– map, chat, video in the browser</span></h3>
+          <img id="eudQr" class="qr-mid" alt="TAKweb QR code" style="cursor:pointer" title="Show large / print">
+          <p class="mut small">For users with access. Video (phone/helmet camera) starts right in TAKweb and appears as a feed in the TAK server automatically.</p>
           <div class="link"><input id="eudUrl" readonly><button class="sm" id="eudUrlCopy" type="button">Copy</button></div>
         </div>
       </div>
@@ -267,7 +267,7 @@
           <img id="appQr" class="qr-small" alt="Camera app QR code">
           <div class="grow">
             <p class="mut small">For cameras without their own TAK access: scan, enter name and unit, connect the camera, start the stream –
-              the feed appears in the TAK server automatically. Users with access start video right in WebTAK.</p>
+              the feed appears in the TAK server automatically. Users with access start video right in TAKweb.</p>
             <div class="link"><input id="appUrl" readonly><button class="sm" id="appUrlCopy" type="button">Copy</button></div>
             <div class="row" style="margin-top:8px"><button id="appQrBig" type="button">Show large / print</button></div>
           </div>
@@ -287,7 +287,7 @@
     </section>
 
     <section class="card" data-view="webtak">
-      <h2>WebTAK app <span class="mut small">(settings – link and QR code under "Links &amp; QR codes")</span></h2>
+      <h2>TAKweb app <span class="mut small">(settings – link and QR code under "Links &amp; QR codes")</span></h2>
       <div>
         <div class="grow">
           <p class="mut small">Users connect with their own TAK credentials (certificate enrollment, .p12 / data package or QR code from the
@@ -319,9 +319,9 @@
       <div class="row between"><h2>OTS users <span class="mut small">(all accounts in the TAK server)</span></h2>
         <div class="row"><input id="ouFilter" class="filter" placeholder="Search …"><button class="pri" id="ouNew" type="button">+ New user</button><button id="ouReload" type="button">⟳</button></div></div>
       <p class="mut small">All users from OpenTAKServer – including those created directly in OTS. "Import" additionally manages a user
-        in WebTAK (callsign, team, access page with QR codes).</p>
+        in TAKweb (callsign, team, access page with QR codes).</p>
       <p class="msg" id="ouMsg"></p>
-      <div class="table-wrap"><table class="streams" id="ouTable"><thead><tr><th>User</th><th>Role</th><th>Active</th><th>Groups</th><th>Devices</th><th>Last login</th><th>WebTAK</th><th></th></tr></thead><tbody></tbody></table></div>
+      <div class="table-wrap"><table class="streams" id="ouTable"><thead><tr><th>User</th><th>Role</th><th>Active</th><th>Groups</th><th>Devices</th><th>Last login</th><th>TAKweb</th><th></th></tr></thead><tbody></tbody></table></div>
     </section>
     <section class="card" data-view="otsgroups">
       <div class="row between"><h2>Groups <span class="mut small">(OTS channels)</span></h2><button id="ogReload" type="button">⟳</button></div>
@@ -345,7 +345,7 @@
     </section>
     <section class="card" data-view="video">
       <div class="row between"><h2>All feeds in the TAK server <span class="mut small">(OpenTAKServer/MediaMTX)</span></h2><button id="ofReload" type="button">⟳</button></div>
-      <p class="mut small">These are all feeds ATAK/iTAK/WinTAK see under "Video" – the cameras from WebTAK (above) and other sources.
+      <p class="mut small">These are all feeds ATAK/iTAK/WinTAK see under "Video" – the cameras from TAKweb (above) and other sources.
         <b>Add another feed:</b> OTS/MediaMTX pulls the video on demand from the source (camera, drone, another server) and provides it as
         <b>rtsp://&lt;TAK server&gt;:8554/&lt;path&gt;</b>. Without a source the path waits for a camera that sends to it itself.</p>
       <form class="row" id="ofForm"><div class="grow"><label>Path</label><input name="path" placeholder="e.g. drone1" required></div>
@@ -355,7 +355,7 @@
       <details class="fold" id="ofPush">
         <summary>🚁 Send a drone (DJI), OBS or screen app directly to the TAK server</summary>
         <p class="mut small">Nothing to create: whoever sends to a path with their <b>TAK user and password</b> shows up as a feed right away.
-          Users find their ready-made address on their access page and in WebTAK under Video.</p>
+          Users find their ready-made address on their access page and in TAKweb under Video.</p>
         <table class="kv small">
           <tr><th>RTMP (DJI Fly, DJI Pilot 2, OBS, Larix)</th><td><code id="ofRtmp"></code></td></tr>
           <tr><th>RTSP</th><td><code id="ofRtspPush"></code></td></tr>
@@ -363,7 +363,7 @@
         </table>
         <p class="mut small">DJI Fly: ⋯ → Transmission → Live Streaming → RTMP. DJI Pilot 2: ⋯ → Livestream → RTMP.
           Phone screen: the "Larix Screencaster" app (Android) with the RTMP address – browsers cannot share a phone screen.
-          PC screen: in WebTAK under Video "Share screen".</p>
+          PC screen: in TAKweb under Video "Share screen".</p>
       </details>
       <div class="table-wrap"><table class="streams" id="ofTable"><thead><tr><th>Path</th><th>Origin</th><th>Source</th><th>For ATAK</th><th></th></tr></thead><tbody></tbody></table></div>
     </section>
@@ -388,8 +388,8 @@
       <div class="table-wrap"><table class="streams" id="omeTable"><thead><tr><th>Channel</th><th>Radio</th><th>Up/Down</th><th>Link</th><th></th></tr></thead><tbody></tbody></table></div>
     </section>
     <section class="card" data-view="mapclear">
-      <div class="row between"><h2>Clear map <span class="mut small">(on all WebTAK devices – e.g. after a mission)</span></h2><button id="mcReload" type="button">⟳</button></div>
-      <p class="mut small">Choose what to remove. Every WebTAK device shows a request when it connects (devices online right now
+      <div class="row between"><h2>Clear map <span class="mut small">(on all TAKweb devices – e.g. after a mission)</span></h2><button id="mcReload" type="button">⟳</button></div>
+      <p class="mut small">Choose what to remove. Every TAKweb device shows a request when it connects (devices online right now
         at once) and clears after the user confirms – nobody has to delete everything by hand. Only content from <b>before</b> the
         request is removed, new markers stay. A new request replaces the old one; devices that cleared are not asked again.
         ATAK/iTAK/WinTAK are not affected.</p>
@@ -406,9 +406,9 @@
 
     <section class="card" data-view="federation">
       <div class="row between"><h2>Federation <span class="mut small">(TAK servers exchange data)</span></h2><button id="fdReload" type="button">⟳</button></div>
-      <p class="mut small">WebTAK connects to every server below with its own certificate and passes data on in <b>all directions</b>: live data
+      <p class="mut small">TAKweb connects to every server below with its own certificate and passes data on in <b>all directions</b>: live data
         (positions, markers, drawings, chat, deletions) right away, <b>data packages</b> regularly – only what a server is missing (by hash),
-        so nothing arrives twice and nothing loops back. Who sees what on a server follows the groups of WebTAK's certificate user there.</p>
+        so nothing arrives twice and nothing loops back. Who sees what on a server follows the groups of TAKweb's certificate user there.</p>
       <div class="row">
         <label class="check"><input type="checkbox" id="fdOn"> Federation on</label>
         <div><label>Data packages every (minutes)</label><input id="fdInterval" type="number" min="1" max="1440" style="width:90px"></div>
@@ -507,7 +507,7 @@
     <label class="check"><input type="checkbox" name="secure"> SSL/TLS (port 465 – chosen automatically for 465/587/25)</label>
     <label>User</label><input name="user" autocomplete="off">
     <label>Password <span class="mut" data-haspass></span></label><input name="pass" type="password" autocomplete="new-password" placeholder="empty = unchanged">
-    <label>Sender</label><input name="from" placeholder="WebTAK &lt;noreply@example.com&gt;">
+    <label>Sender</label><input name="from" placeholder="TAKweb &lt;noreply@example.com&gt;">
     <div class="row" style="margin-top:12px">
       <button class="pri" type="submit">Save SMTP</button>
       <button type="button" data-test>Send test mail</button>

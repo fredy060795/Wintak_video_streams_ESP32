@@ -22,10 +22,10 @@ function truststore(password) {
 
 test('setup package: ATAK finds server, login, callsign, team and truststore', () => {
   const pkg = atakPackage({
-    host: 'tak.example.com', port: 8089, description: 'WebTAK', username: 'mike', password: 'atakatak',
+    host: 'tak.example.com', port: 8089, description: 'TAKweb', username: 'mike', password: 'atakatak',
     caPassword: 'atakatak', callsign: 'MIKE & Co', team: 'Blue', role: 'Team Lead', truststore: truststore('atakatak'),
   });
-  assert.equal(pkg.filename, 'WebTAK-MIKE_Co.zip');
+  assert.equal(pkg.filename, 'TAKweb-MIKE_Co.zip');
   const files = tak.unzip(pkg.data);
   assert.deepEqual(Object.keys(files).sort(), ['MANIFEST/manifest.xml', 'certs/config.pref', 'certs/truststore.p12']);
   const manifest = files['MANIFEST/manifest.xml'].toString();
@@ -36,9 +36,9 @@ test('setup package: ATAK finds server, login, callsign, team and truststore', (
     ['enrollForCertificateWithTrust0', 'true'], ['caLocation0', 'cert/truststore.p12'], ['locationCallsign', 'MIKE &amp; Co'], ['locationTeam', 'Blue'], ['atakRoleType', 'Team Lead']]) {
     assert.match(pref, new RegExp(`key="${k}"[^>]*>${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}<`), k);
   }
-  // Cross-check: WebTAK's package reader (like ATAK) reads server, login and certificate
+  // Cross-check: TAKweb's package reader (like ATAK) reads server, login and certificate
   const r = tak.readDataPackage(pkg.data.toString('base64'));
-  assert.deepEqual(r.server, { host: 'tak.example.com', port: 8089, proto: 'ssl', description: 'WebTAK' });
+  assert.deepEqual(r.server, { host: 'tak.example.com', port: 8089, proto: 'ssl', description: 'TAKweb' });
   assert.equal(r.enroll, true);
   assert.equal(r.caPems.length, 1);
 });
