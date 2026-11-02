@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>WebTAK Access – My access</title>
+<title>TAKweb Access – My access</title>
 <meta name="theme-color" content="#0b0e12">
 <meta name="referrer" content="no-referrer">
 <link rel="icon" href="/assets/brand/favicon.ico" sizes="any">
@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="/assets/tak.css">
 </head>
 <body>
-<header class="top"><img src="/assets/brand/webtak-logo-160.png" alt=""><h1>WebTAK <span class="ver">v__WEBTAK_VERSION__</span> <span class="mut">Access</span></h1><span class="badge" id="badge"></span></header>
+<header class="top"><img src="/assets/brand/takweb-logo-160.png" alt=""><h1>TAKweb <span class="ver">v__TAKWEB_VERSION__</span> <span class="mut">Access</span></h1><span class="badge" id="badge"></span></header>
 <main class="wrap">
   <p class="msg" id="msg"></p>
 
@@ -47,28 +47,28 @@
 
     <section class="card">
       <h2>Set up your app</h2>
-      <p class="mut small"><b class="rec">★ Recommended: WebTAK</b> – works right away in the browser on any phone, tablet or PC.
+      <p class="mut small"><b class="rec">★ Recommended: TAKweb</b> – works right away in the browser on any phone, tablet or PC.
         Nothing to install from an app store, your server and login are filled in automatically. ATAK and iTAK are optional.</p>
       <div class="tabs" id="tabs">
-        <button type="button" data-tab="eud" class="on">★ WebTAK<small>recommended</small></button>
+        <button type="button" data-tab="eud" class="on">★ TAKweb<small>recommended</small></button>
         <button type="button" data-tab="atak">ATAK<small style="color:var(--mut)">Android</small></button>
         <button type="button" data-tab="itak">iTAK<small style="color:var(--mut)">iPhone</small></button>
       </div>
 
       <div data-pane="eud">
         <div class="appbox" id="appBox">
-          <b>Android: WebTAK app</b> – keeps sending your position with the screen locked.
+          <b>Android: TAKweb app</b> – keeps sending your position with the screen locked.
           <div class="row" style="margin-top:8px">
-            <a class="btn" href="/download/webtak.apk">1 · Download the app</a>
-            <a class="btn blue" id="appOpen" href="#">2 · Open in the WebTAK app</a>
+            <a class="btn" href="/download/takweb.apk">1 · Download the app</a>
+            <a class="btn blue" id="appOpen" href="#">2 · Open in the TAKweb app</a>
           </div>
           <p class="mut small">Installing: allow "install unknown apps" for your browser when Android asks. Then tap 2 – server and login are taken over.</p>
         </div>
         <div class="qrbox">
-          <img class="qr" id="qrEud" alt="WebTAK QR code">
+          <img class="qr" id="qrEud" alt="TAKweb QR code">
           <div class="grow">
             <ol class="steps">
-              <li>Scan this code with the phone camera – or on the phone tap <a class="btn blue" id="eudLink" href="#" style="min-height:34px;padding:4px 10px">Open WebTAK</a></li>
+              <li>Scan this code with the phone camera – or on the phone tap <a class="btn blue" id="eudLink" href="#" style="min-height:34px;padding:4px 10px">Open TAKweb</a></li>
               <li>The app opens with your server already set and requests its certificate automatically.
                 If asked about an unknown server certificate, tap <b>TRUST</b> (or load the truststore first).</li>
               <li>Add it to your home screen: Android Chrome <span class="path">⋮ → Add to Home screen</span>,
@@ -127,7 +127,7 @@
     <section class="card" id="droneCard">
       <h2>Drone / external camera → TAK video</h2>
       <p class="mut small">Send a live picture from a DJI drone, an action camera or another app directly into TAK. It appears for everyone
-        under <b>Video</b> as <b id="droneName"></b> (ATAK, iTAK, WinTAK and WebTAK). This address contains your login – keep it private.</p>
+        under <b>Video</b> as <b id="droneName"></b> (ATAK, iTAK, WinTAK and TAKweb). This address contains your login – keep it private.</p>
       <label class="mut small">RTMP address (DJI, OBS, Larix …)</label>
       <div class="row"><input id="droneRtmp" readonly class="grow" style="font-family:ui-monospace,monospace;font-size:13px"><button type="button" id="droneCopy">Copy</button></div>
       <details style="margin-top:10px"><summary class="small">Other protocols (RTSP, SRT)</summary>
@@ -142,7 +142,7 @@
       </ol>
       <h3>Phone or controller screen</h3>
       <p class="small mut">Browsers cannot capture a phone screen. Use an app such as <b>Larix Screencaster</b> (Android) or
-        <b>Larix Broadcaster</b>, add a connection with the RTMP address above and start. On a PC you can share the screen directly in WebTAK
+        <b>Larix Broadcaster</b>, add a connection with the RTMP address above and start. On a PC you can share the screen directly in TAKweb
         (Video → Share screen).</p>
     </section>
 
@@ -270,9 +270,9 @@ async function load() {
     $('droneSrt').textContent = `srt://${me.host}:8890?streamid=publish:${path}:${u}:${pw}`;
     $('droneCopy').onclick = () => navigator.clipboard.writeText($('droneRtmp').value).then(() => { $('droneCopy').textContent = 'Copied'; }, () => $('droneRtmp').select());
   } else $('droneCard').classList.add('hidden');
-  p.set('t', token); // WebTAK remembers the access (e.g. for the drone address without typing the password)
+  p.set('t', token); // TAKweb remembers the access (e.g. for the drone address without typing the password)
   $('eudLink').href = '/eud/#' + p;
-  $('appOpen').href = 'webtak://open?u=' + encodeURIComponent(location.origin + '/eud/#' + p); // Android app (mobile/)
+  $('appOpen').href = 'takweb://open?u=' + encodeURIComponent(location.origin + '/eud/#' + p); // Android app (mobile/)
   if (!/Android/i.test(navigator.userAgent)) $('appBox').classList.add('hidden'); // the app is for Android only
 
 }

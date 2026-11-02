@@ -131,7 +131,7 @@ const OfflineTileLayer = L.TileLayer.extend({
     return tile;
   },
 });
-// save without a service worker: in the page (keeps running only while WebTAK is open)
+// save without a service worker: in the page (keeps running only while TAKweb is open)
 let pageStop = false;
 async function pagePrefetch(urls, report) {
   pageStop = false;
@@ -271,7 +271,7 @@ if (navigator.getBattery) navigator.getBattery().then(b => {
 }).catch(() => {});
 
 function showMe() {
-  document.title = profile.callsign ? `WebTAK – ${profile.callsign}` : 'WebTAK';
+  document.title = profile.callsign ? `TAKweb – ${profile.callsign}` : 'TAKweb';
 }
 
 // ======================================================================
@@ -943,7 +943,7 @@ function updateStatus() {
   if (popupSec === 'server') renderServers();
 }
 
-// drone/camera address: the login from WebTAK for a connected user (proved by the certificate) – kept like ATAK
+// drone/camera address: the login from TAKweb for a connected user (proved by the certificate) – kept like ATAK
 const droneWait = new Map(); // server id -> resolve
 function askDrone() {
   const list = servers.filter(s => s.auto && isOpen(connOf(s)) && connOf(s).state === 'connected');
@@ -1048,7 +1048,7 @@ function openConn(srv) {
       c.state = 'offline';
       // the page itself loads, only the WebSocket does not open: usually a reverse proxy (nginx) without WebSocket forwarding
       c.message = !c.wsOk && navigator.onLine
-        ? 'WebTAK relay not reachable: the WebSocket /ws/tak does not open. If WebTAK runs behind nginx/Apache, the proxy must forward WebSockets (Upgrade/Connection headers).'
+        ? 'TAKweb relay not reachable: the WebSocket /ws/tak does not open. If TAKweb runs behind nginx/Apache, the proxy must forward WebSockets (Upgrade/Connection headers).'
         : '';
     }
     updateStatus();
@@ -1115,7 +1115,7 @@ document.addEventListener('visibilitychange', () => {
 
 let meMarker = null, meCircle = null, meFov = null, follow = true, lastSent = 0, sentAt = null, sentAz = null;
 
-// own camera while streaming: field of view for ATAK/WebTAK (<sensor>). Phone camera: direction of the
+// own camera while streaming: field of view for ATAK/TAKweb (<sensor>). Phone camera: direction of the
 // back of the phone (compass); helmet camera: GPS course while moving, standing still the phone's compass
 // (the phone is not on the helmet – it fits when it is carried facing forward, e.g. on the chest).
 const CAM_FOV = { phone: { fov: 60, vfov: 45, model: 'Phone camera' }, ble: { fov: 66, vfov: 50, model: 'Helmet camera' } };
@@ -1141,7 +1141,7 @@ function selfXml() {
   const sensor = cam ? `<sensor azimuth="${cam.az}" fov="${cam.fov}" vfov="${cam.vfov}" range="${cam.range}" elevation="0" roll="0" north="0" type="r-e" model="${cam.model}" version="0.6"/>` : '';
   return `<event version="2.0" uid="${xmlEsc(profile.uid)}" type="a-f-G-U-C" how="m-g" time="${cotTime(now)}" start="${cotTime(now)}" stale="${cotTime(new Date(+now + 120000))}">`
     + `<point lat="${p.lat.toFixed(7)}" lon="${p.lon.toFixed(7)}" hae="${Number.isFinite(p.alt) ? p.alt.toFixed(1) : '9999999'}" ce="${Math.round(p.acc || 9999999)}" le="9999999"/>`
-    + `<detail><takv os="${xmlEsc(navigator.platform || 'Web')}" version="1.0" device="Browser" platform="WebTAK"/>`
+    + `<detail><takv os="${xmlEsc(navigator.platform || 'Web')}" version="1.0" device="Browser" platform="TAKweb"/>`
     + `<contact endpoint="*:-1:stcp" callsign="${xmlEsc(profile.callsign || profile.uid)}"/>`
     + `<uid Droid="${xmlEsc(profile.callsign || profile.uid)}"/>`
     + `<precisionlocation altsrc="GPS" geopointsrc="GPS"/>`
@@ -1234,9 +1234,9 @@ setInterval(() => {
 // position: started right away; refused (or the browser wants a tap) -> the permission bar asks again with one tap
 let geoWatch = null, geoDenied = false;
 // Android app (mobile/, Capacitor): the native plugins are in the page – the position keeps coming with the screen
-// locked (a notification shows it), in the browser only while WebTAK is in front
+// locked (a notification shows it), in the browser only while TAKweb is in front
 const appPlugins = (window.Capacitor && window.Capacitor.Plugins) || {};
-const nativeApp = !!appPlugins.WebTak;
+const nativeApp = !!appPlugins.TakWeb;
 const bgGeo = appPlugins.BackgroundGeolocation;
 function onPosition(c, t) {
   if (geoDenied) { geoDenied = false; updatePermBar(); }
@@ -1249,7 +1249,7 @@ function startGeo() {
   if (bgGeo) {
     if (geoWatch != null) return;
     geoWatch = 'bg';
-    bgGeo.addWatcher({ backgroundTitle: 'WebTAK', backgroundMessage: 'Your position is sent to your team.', requestPermissions: true, stale: false, distanceFilter: 0 }, (loc, err) => {
+    bgGeo.addWatcher({ backgroundTitle: 'TAKweb', backgroundMessage: 'Your position is sent to your team.', requestPermissions: true, stale: false, distanceFilter: 0 }, (loc, err) => {
       if (err) {
         if (err.code === 'NOT_AUTHORIZED') { geoDenied = true; geoWatch = null; updatePermBar(); }
         return;
@@ -1588,7 +1588,7 @@ function clearChat(before = Infinity) {
   return n;
 }
 
-// Clear map asked by the admin (WebTAK admin → Clear map): on every (re)connection until the user
+// Clear map asked by the admin (TAKweb admin → Clear map): on every (re)connection until the user
 // cleared it – then never again for this request. Only what is older than the request is removed.
 const MC_LABEL = { contacts: 'Contacts (users)', f: 'Markers – Friendly', h: 'Markers – Hostile', n: 'Markers – Neutral', u: 'Markers – Unknown',
   points: 'Other points', shapes: 'Drawings & routes', overlays: 'Overlays (KML/KMZ)', chat: 'Chat messages' };
@@ -1653,7 +1653,7 @@ function applyAssignment(a) {
 }
 
 // settings from the TAK server's device profile (like ATAK): callsign, team, role – an administrator's
-// assignment (WebTAK) has priority
+// assignment (TAKweb) has priority
 function applyProfilePrefs(p) {
   if (!p || profile.assigned) return;
   // callsign: like an admin's assignment only when the user did not change the server's last one
@@ -1703,15 +1703,15 @@ function fillMe() {
   if (nativeApp) {
     $('appBtns').classList.add('hidden');
     $('appServer').classList.remove('hidden');
-    $('appText').textContent = `WebTAK app · server ${location.host}. Your position is also sent with the screen locked (notification "WebTAK").`;
+    $('appText').textContent = `TAKweb app · server ${location.host}. Your position is also sent with the screen locked (notification "TAKweb").`;
     $('appServer').addEventListener('click', () => {
-      if (confirm('Choose another WebTAK server? The app starts again.')) appPlugins.WebTak.setServer({ url: '' });
+      if (confirm('Choose another TAKweb server? The app starts again.')) appPlugins.TakWeb.setServer({ url: '' });
     });
     return;
   }
-  $('appText').textContent = 'The WebTAK app for Android keeps sending your position with the screen locked. Install it, then tap "Open in the app" – server and login are taken over.';
+  $('appText').textContent = 'The TAKweb app for Android keeps sending your position with the screen locked. Install it, then tap "Open in the app" – server and login are taken over.';
   // the invitation this page was opened with (login included), otherwise just this server
-  $('appOpen').href = 'webtak://open?u=' + encodeURIComponent(location.origin + location.pathname + (/host=/.test(launchHash) ? launchHash : ''));
+  $('appOpen').href = 'takweb://open?u=' + encodeURIComponent(location.origin + location.pathname + (/host=/.test(launchHash) ? launchHash : ''));
 })();
 
 $('meSave').addEventListener('click', () => {
@@ -2439,7 +2439,7 @@ $('prefetchBtn').addEventListener('click', async () => {
   setMsg(msg, `Saving … 0 / ${urls.length}`, true);
   if (sw) sw.postMessage({ type: 'prefetch', urls }, [ch.port2]);
   else {
-    setMsg(msg, `Saving … 0 / ${urls.length} (keep WebTAK open until it is done)`, true);
+    setMsg(msg, `Saving … 0 / ${urls.length} (keep TAKweb open until it is done)`, true);
     pagePrefetch(urls, onProgress);
   }
 });
@@ -2560,7 +2560,7 @@ function startHeading(quiet) {
 }
 // the compass always runs: the own arrow turns with the phone (the compass button only decides whether the map turns)
 startHeading(true);
-// After every start (iPhone asks again each time WebTAK was closed): a bar right away "allow location & compass" –
+// After every start (iPhone asks again each time TAKweb was closed): a bar right away "allow location & compass" –
 // one tap asks for both (the compass may only be asked within a tap). Shown only while something is missing.
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 let permAsked = false;
@@ -2570,7 +2570,7 @@ function updatePermBar() {
   $('permBar').classList.toggle('hidden', !need);
   if (!need) return;
   if (nativeApp) {
-    $('permText').textContent = 'Location is not allowed for the WebTAK app – your position is not sent. ALLOW opens the app settings (Permissions → Location → "Allow all the time").';
+    $('permText').textContent = 'Location is not allowed for the TAKweb app – your position is not sent. ALLOW opens the app settings (Permissions → Location → "Allow all the time").';
     return;
   }
   $('permText').textContent = !compassAllowed && geoDenied ? 'Allow location and compass – otherwise your position and direction are not shown or sent.'

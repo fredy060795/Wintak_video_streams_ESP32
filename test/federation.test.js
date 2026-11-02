@@ -97,7 +97,7 @@ before(async () => {
   caCert.sign(ck.privateKey, forge.md.sha256.create());
   ca = { cert: caCert, pem: forge.pki.certificateToPem(caCert) };
   const sc = makeCert('tak', sk.publicKey, ca, false, true); sc.sign(ck.privateKey, forge.md.sha256.create());
-  const cc = makeCert('webtak-fed', kk.publicKey, ca, false, false); cc.sign(ck.privateKey, forge.md.sha256.create());
+  const cc = makeCert('takweb-fed', kk.publicKey, ca, false, false); cc.sign(ck.privateKey, forge.md.sha256.create());
   serverKey = forge.pki.privateKeyToPem(sk.privateKey); serverCert = forge.pki.certificateToPem(sc);
   clientKey = forge.pki.privateKeyToPem(kk.privateKey); clientCert = forge.pki.certificateToPem(cc);
   A = mockTak('A'); B = mockTak('B');
@@ -126,7 +126,7 @@ test('live data goes from one server to the other – marked, once, not back', a
   await sleep(300);
   const got = devB.got.filter(x => x.includes('uid="ANDROID-A1"'));
   assert.equal(got.length, 1, 'arrives on B once');
-  assert.match(got[0], /<__webtakfed id="f1" from="A"\/><\/detail>/);
+  assert.match(got[0], /<__takwebfed id="f1" from="A"\/><\/detail>/);
   assert.equal(devA.got.filter(x => x.includes('ANDROID-A1')).length, 0, 'not back to A');
   // B -> A (both directions), also chat and deletions
   devB.send(ev('GeoChat.ANDROID-B1.All Chat Rooms.1', 'b-t-f', undefined, '<remarks>hello</remarks>'));
@@ -138,8 +138,8 @@ test('live data goes from one server to the other – marked, once, not back', a
 
 test('no loops, no duplicates, no server-specific messages', async () => {
   const before = devA.got.length + devB.got.length;
-  // already passed through a WebTAK federation (e.g. a second bridge): not passed on again
-  devA.send(ev('LOOP-1', undefined, undefined, '<__webtakfed id="other" from="X"/>'));
+  // already passed through a TAKweb federation (e.g. a second bridge): not passed on again
+  devA.send(ev('LOOP-1', undefined, undefined, '<__takwebfed id="other" from="X"/>'));
   // the same event on both servers (e.g. sent by a device to both): passed on only once
   devA.send(ev('DUP-1', undefined, '2026-10-25T11:00:00.000Z'));
   await sleep(150);

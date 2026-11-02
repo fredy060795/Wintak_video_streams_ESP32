@@ -1,8 +1,8 @@
 {
-  "name": "webtak-android",
+  "name": "takweb-android",
   "version": "1.0.0",
   "private": true,
-  "description": "WebTAK for Android: opens the WebTAK server from the invitation link, with background location",
+  "description": "TAKweb for Android: opens the TAKweb server from the invitation link, with background location",
   "scripts": {
     "sync": "cp node_modules/jsqr/dist/jsQR.js www/jsQR.js && cap sync android"
   },

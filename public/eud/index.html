@@ -3,25 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
-<title>WebTAK</title>
+<title>TAKweb</title>
 <meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="WebTAK">
+<meta name="apple-mobile-web-app-title" content="TAKweb">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="/assets/brand/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="vendor/leaflet.css">
-<link rel="stylesheet" href="eud.css?v=__WEBTAK_VERSION__">
+<link rel="stylesheet" href="eud.css?v=__TAKWEB_VERSION__">
 </head>
 <body>
 <div id="mapWrap"><div id="map"></div><div id="map3d" class="hidden"></div></div>
 
 <!-- Top bar (ATAK style) -->
 <header id="tsb">
-  <span id="tsbName">WebTAK <span class="ver">v__WEBTAK_VERSION__</span></span>
+  <span id="tsbName">TAKweb <span class="ver">v__TAKWEB_VERSION__</span></span>
   <span class="grow"></span>
   <button type="button" class="tsb-btn" id="btnLayers" title="Maps" aria-label="Maps">
     <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"><path d="M2 6l7-3 6 3 7-3v15l-7 3-6-3-7 3z"/><path d="M9 3v15M15 6v15"/></svg>
@@ -68,7 +68,7 @@
   <div id="pitchText">0°</div>
 </div>
 
-<!-- Bottom right: connection status like ATAK (WebTAK logo, dot green = connected, red = offline) and own position -->
+<!-- Bottom right: connection status like ATAK (TAKweb logo, dot green = connected, red = offline) and own position -->
 <button type="button" id="connBtn" title="Servers" aria-label="Server connection">
   <img src="tak-badge.png" alt="">
   <span id="dot" class="dot"></span><span id="statusText" class="sr">OFFLINE</span>
@@ -299,7 +299,7 @@
           <div class="subhead">ANDROID APP</div>
           <p class="hint" id="appText"></p>
           <div class="row2" id="appBtns">
-            <a class="mbtn" id="appGet" href="/download/webtak.apk">DOWNLOAD APP</a>
+            <a class="mbtn" id="appGet" href="/download/takweb.apk">DOWNLOAD APP</a>
             <a class="mbtn pri" id="appOpen" href="#">OPEN IN THE APP</a>
           </div>
           <button type="button" class="mbtn hidden" id="appServer">CHANGE SERVER</button>
@@ -353,7 +353,7 @@
         <div class="nw-banner off" id="meshBanner"><span class="dot"></span><span id="meshState">Not connected</span></div>
         <div class="kv"><span>Nodes heard (2 h)</span><b id="meshNodes">–</b></div>
         <div class="kv"><span>Sending via mesh</span><b id="meshSending">–</b></div>
-        <p class="hint hidden" id="meshBt">This browser has no Bluetooth. Android: use Chrome. iPhone: open WebTAK in the free "Bluefy" app.</p>
+        <p class="hint hidden" id="meshBt">This browser has no Bluetooth. Android: use Chrome. iPhone: open TAKweb in the free "Bluefy" app.</p>
         <button type="button" class="mbtn hidden" id="meshBluefy">COPY LINK FOR BLUEFY</button>
         <button type="button" class="mbtn pri big" id="meshPick">CONNECT MESHTASTIC RADIO</button>
         <div class="row2">
@@ -376,7 +376,7 @@
         <label class="check"><input type="checkbox" id="meshText"> Also send chat as Meshtastic text (readable in the Meshtastic app)</label>
         <label class="check"><input type="checkbox" id="meshBridge"> Bridge mesh ↔ TAK server: pass on what only one side has (positions, chat "All", markers, drawings, deletions)</label>
         <p class="hint">Works with the Meshtastic ATAK plugin: positions and chat go over LoRa as TAK packets. A radio accepts only
-          one Bluetooth connection – disconnect the Meshtastic app first. Keep the screen on and WebTAK in the foreground.
+          one Bluetooth connection – disconnect the Meshtastic app first. Keep the screen on and TAKweb in the foreground.
           During a video stream the radio is released and reconnected afterwards.</p>
       </section>
 
@@ -524,13 +524,13 @@
 <script src="vendor/leaflet-rotate.js"></script>
 <script src="vendor/milsymbol.js"></script>
 <script src="vendor/jsQR.js"></script>
-<script src="eud.js?v=__WEBTAK_VERSION__"></script>
-<script src="view3d.js?v=__WEBTAK_VERSION__"></script>
-<script src="video.js?v=__WEBTAK_VERSION__"></script>
-<script src="data.js?v=__WEBTAK_VERSION__"></script>
-<script src="meshproto.js?v=__WEBTAK_VERSION__"></script>
-<script src="blenative.js?v=__WEBTAK_VERSION__"></script>
-<script src="mesh.js?v=__WEBTAK_VERSION__"></script>
-<script src="tools.js?v=__WEBTAK_VERSION__"></script>
+<script src="eud.js?v=__TAKWEB_VERSION__"></script>
+<script src="view3d.js?v=__TAKWEB_VERSION__"></script>
+<script src="video.js?v=__TAKWEB_VERSION__"></script>
+<script src="data.js?v=__TAKWEB_VERSION__"></script>
+<script src="meshproto.js?v=__TAKWEB_VERSION__"></script>
+<script src="blenative.js?v=__TAKWEB_VERSION__"></script>
+<script src="mesh.js?v=__TAKWEB_VERSION__"></script>
+<script src="tools.js?v=__TAKWEB_VERSION__"></script>
 </body>
 </html>

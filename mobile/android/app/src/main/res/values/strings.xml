@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">WebTAK</string>
-    <string name="title_activity_main">WebTAK</string>
-    <string name="package_name">at.webtak.eud</string>
-    <string name="custom_url_scheme">at.webtak.eud</string>
+    <string name="app_name">TAKweb</string>
+    <string name="title_activity_main">TAKweb</string>
+    <string name="package_name">at.takweb.eud</string>
+    <string name="custom_url_scheme">at.takweb.eud</string>
 </resources>

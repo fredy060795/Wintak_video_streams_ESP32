@@ -37,11 +37,11 @@
       const w = window.open('', '_blank', 'width=420,height=560');
       if (!w) return;
       const d = w.document;
-      d.title = 'WebTAK Access';
+      d.title = 'TAKweb Access';
       d.body.style.cssText = 'font-family:system-ui,sans-serif;text-align:center';
-      const h = d.createElement('h1'); h.textContent = 'WebTAK Access';
+      const h = d.createElement('h1'); h.textContent = 'TAKweb Access';
       const i = d.createElement('img'); i.src = img.src; i.style.width = '320px';
-      const t = d.createElement('p'); t.textContent = 'Scan to request your WebTAK access – ' + url;
+      const t = d.createElement('p'); t.textContent = 'Scan to request your TAKweb access – ' + url;
       d.body.append(h, i, t);
       i.onload = () => w.print();
     } });
@@ -304,11 +304,11 @@
     f.anon.checked = state.ots.anon !== false;
     f.truststorePassword.value = state.ots.truststorePassword || 'atakatak';
     $('otsHasPass').textContent = state.ots.hasPassword ? '(saved)' : '';
-    // which address the QR codes, the setup package and iTAK get – must be the TAK server, not this WebTAK server
+    // which address the QR codes, the setup package and iTAK get – must be the TAK server, not this TAKweb server
     const eff = state.ots.effectiveHost || '';
     const same = eff && eff.toLowerCase() === location.hostname.toLowerCase();
     $('otsHostInfo').textContent = !eff ? ''
-      : same ? `Devices currently get "${eff}" – that is the address of this WebTAK server. If the TAK server has its own domain, enter it above.`
+      : same ? `Devices currently get "${eff}" – that is the address of this TAKweb server. If the TAK server has its own domain, enter it above.`
       : `Devices (QR codes, setup package, iTAK) connect to: ${eff}${state.ots.host ? '' : ' (taken from the OTS address)'}`;
     $('otsHostInfo').className = 'small ' + (same ? 'warn' : 'mut');
     const r = $('regForm2');
@@ -359,12 +359,12 @@
       const w = window.open('', '_blank', 'width=480,height=640');
       if (!w) return;
       const d = w.document;
-      d.title = 'WebTAK Access';
+      d.title = 'TAKweb Access';
       d.body.style.fontFamily = 'system-ui, sans-serif';
       d.body.style.textAlign = 'center';
-      const h = d.createElement('h1'); h.textContent = 'WebTAK Access';
+      const h = d.createElement('h1'); h.textContent = 'TAKweb Access';
       const i = d.createElement('img'); i.src = img.src; i.style.width = '340px';
-      const t = d.createElement('p'); t.textContent = 'Scan to request your WebTAK access';
+      const t = d.createElement('p'); t.textContent = 'Scan to request your TAKweb access';
       d.body.append(h, i, t);
       i.onload = () => w.print();
     } });

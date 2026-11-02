@@ -1,4 +1,4 @@
-package at.webtak.eud;
+package at.takweb.eud;
 
 import android.app.AlertDialog;
 import android.content.Context;
@@ -18,19 +18,19 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import org.json.JSONObject;
 
-// WebTAK for Android: one app for every WebTAK server. The server comes from the invitation (webtak://open?u=…,
-// "Open in the WebTAK app" on the access page) or a scanned WebTAK QR code, and becomes the app's start address –
+// TAKweb for Android: one app for every TAKweb server. The server comes from the invitation (takweb://open?u=…,
+// "Open in the TAKweb app" on the access page) or a scanned TAKweb QR code, and becomes the app's start address –
 // only there Capacitor puts its plugins (background location, Bluetooth) into the page.
-// Safety: only a real WebTAK server is taken (checked at /api/eud/app), and a link to ANOTHER server is only
-// followed after the user confirmed it – any web page can offer a webtak:// link.
+// Safety: only a real TAKweb server is taken (checked at /api/eud/app), and a link to ANOTHER server is only
+// followed after the user confirmed it – any web page can offer a takweb:// link.
 public class MainActivity extends BridgeActivity {
 
-    static final String PREFS = "webtak";
+    static final String PREFS = "takweb";
     private boolean errorShown = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        registerPlugin(WebTakPlugin.class);
+        registerPlugin(TakWebPlugin.class);
         String link = linkOf(getIntent());
         SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         // the full invitation link (with the login) only once, afterwards the server's EUD address
@@ -64,8 +64,8 @@ public class MainActivity extends BridgeActivity {
                 if (isFinishing()) return;
                 forget(this);
                 new AlertDialog.Builder(this)
-                    .setTitle("Not a WebTAK server")
-                    .setMessage(Uri.parse(start).getHost() + " is not a WebTAK server. Scan the WebTAK QR code or open the invitation again.")
+                    .setTitle("Not a TAKweb server")
+                    .setMessage(Uri.parse(start).getHost() + " is not a TAKweb server. Scan the TAKweb QR code or open the invitation again.")
                     .setCancelable(false)
                     .setPositiveButton("OK", (d, w) -> recreate())
                     .show();
@@ -84,10 +84,10 @@ public class MainActivity extends BridgeActivity {
         super.onNewIntent(intent);
     }
 
-    // webtak://open?u=<https link>; the intent loses its data so it is not handled twice
+    // takweb://open?u=<https link>; the intent loses its data so it is not handled twice
     private static String linkOf(Intent intent) {
         Uri data = intent != null ? intent.getData() : null;
-        if (data == null || !"webtak".equals(data.getScheme())) return null;
+        if (data == null || !"takweb".equals(data.getScheme())) return null;
         intent.setData(null);
         String u = data.getQueryParameter("u");
         Uri p = u != null ? Uri.parse(u) : null;
@@ -98,13 +98,13 @@ public class MainActivity extends BridgeActivity {
         final String host = Uri.parse(url).getHost();
         final String current = savedHost(this);
         new Thread(() -> {
-            final boolean ok = isWebTak(url);
+            final boolean ok = isTakWeb(url);
             runOnUiThread(() -> {
                 if (isFinishing()) return;
                 if (!ok) {
                     new AlertDialog.Builder(this)
-                        .setTitle("Not a WebTAK server")
-                        .setMessage(host + " is not a WebTAK server (or not reachable). The app stays as it is.")
+                        .setTitle("Not a TAKweb server")
+                        .setMessage(host + " is not a TAKweb server (or not reachable). The app stays as it is.")
                         .setPositiveButton("OK", null)
                         .show();
                     return;
@@ -115,7 +115,7 @@ public class MainActivity extends BridgeActivity {
                     return;
                 }
                 new AlertDialog.Builder(this)
-                    .setTitle("Connect to this WebTAK server?")
+                    .setTitle("Connect to this TAKweb server?")
                     .setMessage(host + "\n\nOnly confirm invitations from your administrator. The app then opens this server.")
                     .setPositiveButton("CONNECT", (d, w) -> { remember(this, url); recreate(); })
                     .setNegativeButton("CANCEL", null)
@@ -134,7 +134,7 @@ public class MainActivity extends BridgeActivity {
                 if (!request.isForMainFrame() || errorShown || isFinishing()) return;
                 errorShown = true;
                 new AlertDialog.Builder(MainActivity.this)
-                    .setTitle("WebTAK server not reachable")
+                    .setTitle("TAKweb server not reachable")
                     .setMessage(host + "\n\n" + error.getDescription())
                     .setCancelable(false)
                     .setPositiveButton("RETRY", (d, w) -> { errorShown = false; view.loadUrl(bridge.getAppUrl()); })
@@ -144,12 +144,12 @@ public class MainActivity extends BridgeActivity {
         });
     }
 
-    // a real WebTAK server answers /api/eud/app with {"webtak": true}
-    static boolean isWebTak(String url) {
+    // a real TAKweb server answers /api/eud/app with {"takweb": true}
+    static boolean isTakWeb(String url) {
         return Boolean.TRUE.equals(probe(url));
     }
 
-    // TRUE = WebTAK server, FALSE = answers but is no WebTAK server, null = not reachable
+    // TRUE = TAKweb server, FALSE = answers but is no TAKweb server, null = not reachable
     static Boolean probe(String url) {
         HttpURLConnection c = null;
         int code;
@@ -170,7 +170,7 @@ public class MainActivity extends BridgeActivity {
                 String line;
                 while ((line = r.readLine()) != null && b.length() < 4096) b.append(line);
             }
-            return new JSONObject(b.toString()).optBoolean("webtak", false);
+            return new JSONObject(b.toString()).optBoolean("takweb", false);
         } catch (Exception e) {
             return false;
         } finally {

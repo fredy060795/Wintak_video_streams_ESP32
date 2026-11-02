@@ -1,6 +1,8 @@
-# WebTAK
+# TAKweb
 
-**WebTAK** = TAK in the browser (web app), TAK access with registration and approval (OpenTAKServer) and
+> **TAKweb** is an independent open-source project and is not affiliated with the TAK Product Center.
+
+**TAKweb** = TAK in the browser (web app), TAK access with registration and approval (OpenTAKServer) and
 camera streams that end up in the TAK server automatically. Plus a server and phone app for the Bluetooth helmet camera (ESP32-CAM, firmware from
 [ESP32-Flash](https://github.com/fredy060795/ESP32-Flash)).
 
@@ -40,9 +42,9 @@ camera stream **automatically** as a video feed in OTS – nothing to do by hand
 - In ATAK/WinTAK the stream appears under **Video** as `rtsp://<TAK server>:8554/<path>`.
 - Blocking, switching off (checkbox in the "TAK path" column) or deleting removes the stream again.
 
-The admin has **one** section for this, **Video feeds**: at the top the cameras from WebTAK (phone/helmet camera – whoever
-starts video in WebTAK is an OTS feed `cam/<callsign>` right away), below **all feeds in the TAK server** with their origin
-("WebTAK: …" or "external"), the ATAK link to copy and the form for more feeds (path + source
+The admin has **one** section for this, **Video feeds**: at the top the cameras from TAKweb (phone/helmet camera – whoever
+starts video in TAKweb is an OTS feed `cam/<callsign>` right away), below **all feeds in the TAK server** with their origin
+("TAKweb: …" or "external"), the ATAK link to copy and the form for more feeds (path + source
 rtsp/rtmp/srt/udp/HLS, MediaMTX pulls the video on demand). For the cameras mainly the **path** is maintained: change the field in the "TAK path" column
 and press Enter – the old path is removed in OTS, the new one created (empty = automatic again). The dot shows
 the state (green = registered, yellow = waiting, red = error with an explanation on hover). More switches:
@@ -62,10 +64,10 @@ OpenTAKServer checks the **TAK user and password** and creates the feed itself o
 | **DJI drone** (DJI Fly / DJI Pilot 2) | ⋯ → Transmission/Livestream → **RTMP** → paste the address from the access page |
 | **OBS, Larix Broadcaster** | RTMP, RTSP or SRT (addresses below) |
 | **Phone screen** | "Larix Screencaster" app (Android) with the RTMP address – phone browsers cannot share the screen |
-| **PC screen** | WebTAK → Video → **🖥 Share screen** (desktop browsers only) |
+| **PC screen** | TAKweb → Video → **🖥 Share screen** (desktop browsers only) |
 | **Helmet camera / phone as a camera without TAK access** | camera app `/app/` (QR under "Links & QR codes") |
 
-Addresses (filled in on the access page `/access/` and in WebTAK under Video – without typing a password if WebTAK was opened from the access page – and as a template in the admin under Video feeds):
+Addresses (filled in on the access page `/access/` and in TAKweb under Video – without typing a password if TAKweb was opened from the access page – and as a template in the admin under Video feeds):
 
 ```
 rtmp://<TAK server>:1935/drone-<callsign>?user=<user>&pass=<password>
@@ -75,25 +77,25 @@ srt://<TAK server>:8890?streamid=publish:drone-<callsign>:<user>:<password>
 
 Ports 1935 (RTMP), 8554 (RTSP) and 8890/udp (SRT) must be reachable on the TAK server.
 
-**Drone address without a password:** whoever logged in on this device in WebTAK (user + password, QR code with
+**Drone address without a password:** whoever logged in on this device in TAKweb (user + password, QR code with
 login, setup package) or opened it from the access page gets the address under Video → Drone right away – unique per
 user (`drone-<callsign>`). The password is kept on the device only after the TAK server confirmed it (like ATAK).
 **Registered users never type it:** when the device is connected to our OpenTAKServer with the user's certificate (OTS
-checked it in the TLS handshake), WebTAK hands over the login it manages for that user – also after a login by data
-package/.p12 or in an iPhone home-screen app. Only users WebTAK does not manage (OTS accounts created elsewhere) type
+checked it in the TLS handshake), TAKweb hands over the login it manages for that user – also after a login by data
+package/.p12 or in an iPhone home-screen app. Only users TAKweb does not manage (OTS accounts created elsewhere) type
 their TAK password once – the TAK server checks it (no new certificate), then it is kept like in ATAK.
 
 ## Field of view and drone telemetry (UAS in HQ)
 
 - **Cones ("funnels")** show where a camera looks: for every contact or marker with a field of view (`<sensor>` like in
-  ATAK – e.g. ATAK UAS Tool, other WebTAK users), in 2D and 3D.
+  ATAK – e.g. ATAK UAS Tool, other TAKweb users), in 2D and 3D.
 - **Own stream:** while the phone or helmet camera is live, the own position carries the view direction, angle
-  (60°/66°) and 100 m range – ATAK and WebTAK show the cone. Phone camera: direction of the back of the phone (compass,
+  (60°/66°) and 100 m range – ATAK and TAKweb show the cone. Phone camera: direction of the back of the phone (compass,
   also in north-up mode); helmet camera: the GPS course while moving, standing still the phone's compass (fits when
   the phone is carried facing forward). The compass is allowed with the tap on the stream button (iPhone asks once) –
   no need to switch the compass on first. Cones are at least ~70 px long on the screen at any zoom.
 - **Drone telemetry (KLV, MISB ST 0601):** when a drone feed carries KLV (professional drones, ATAK UAS Tool, QGroundControl,
-  STANAG 4609 encoders), WebTAK shows while watching it: **the drone** (position, height, view direction and cone),
+  STANAG 4609 encoders), TAKweb shows while watching it: **the drone** (position, height, view direction and cone),
   **the image area on the ground** (corners from KLV or computed from height, angle and field of view) and **the image
   centre** (SPI). The player shows e.g. `UAS 1050 m · 227° · FOV 60° ⌖` (tap = drone on the map). The viewer also
   sends the drone to the TAK server, so ATAK in HQ sees it too.
@@ -161,35 +163,35 @@ can press "■ Live off" at any time.
 With **🔔 Notifications** you can additionally allow desktop notifications – they also arrive when the
 admin window is in the background.
 
-**Video from WebTAK/camera app allowed** (switch in the admin) blocks new sign-ups when needed; running streams stay.
+**Video from TAKweb/camera app allowed** (switch in the admin) blocks new sign-ups when needed; running streams stay.
 Whoever is deleted can sign up again with the general QR code – if that should not be possible, block
 self-registration. Optionally streams can still be created manually with their own QR code.
 
 ## Android app (APK)
 
-One app for every WebTAK server (`mobile/`, Capacitor): it opens the server from the invitation and adds what a browser
-cannot – **the position keeps being sent with the screen locked** (notification "WebTAK"), no new permission prompts
+One app for every TAKweb server (`mobile/`, Capacitor): it opens the server from the invitation and adds what a browser
+cannot – **the position keeps being sent with the screen locked** (notification "TAKweb"), no new permission prompts
 after every start.
-- **For users:** access page (or WebTAK → Settings on Android) → **1 · Download the app** → **2 · Open in the WebTAK app**
-  – server and login are taken over (`webtak://open?u=…`). Or in the app: **scan the WebTAK QR code** (camera or a photo of
+- **For users:** access page (or TAKweb → Settings on Android) → **1 · Download the app** → **2 · Open in the TAKweb app**
+  – server and login are taken over (`takweb://open?u=…`). Or in the app: **scan the TAKweb QR code** (camera or a photo of
   it). There is no free address field. In the app: Settings → CHANGE SERVER. Android asks once to allow installing apps
   from the browser.
-- **Safe:** the app only takes a real WebTAK server (it checks `/api/eud/app`), and a link to *another* server is only
-  followed after the user confirmed "Connect to this WebTAK server?" – any web page could offer a `webtak://` link.
+- **Safe:** the app only takes a real TAKweb server (it checks `/api/eud/app`), and a link to *another* server is only
+  followed after the user confirmed "Connect to this TAKweb server?" – any web page could offer a `takweb://` link.
   Server not reachable → RETRY or OTHER SERVER, the app is never stuck on a wrong address.
 - **Meshtastic over Bluetooth** works in the app too (native Bluetooth instead of Web Bluetooth, `blenative.js`).
 - **Permissions in the app:** Android keeps the app's permissions – no permission bar after every start like in the browser. Only when location was really refused does a bar appear; ALLOW opens the app settings.
-- **Download:** `/download/webtak.apk` on the WebTAK server – a `webtak.apk` in the data folder (e.g. without internet in
-  the field), otherwise the GitHub release (`WEBTAK_APK_URL`, default: release `android` of this repository).
+- **Download:** `/download/takweb.apk` on the TAKweb server – a `takweb.apk` in the data folder (e.g. without internet in
+  the field), otherwise the GitHub release (`TAKWEB_APK_URL`, default: release `android` of this repository).
 - **Build:** GitHub Actions (`.github/workflows/android.yml`) builds the APK for every change in `mobile/` and publishes it
   on `main` as release `android`. Sign every version with the same key – add the secrets `ANDROID_KEYSTORE_BASE64`,
   `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` (Settings → Secrets → Actions); without them
   the APK is debug-signed and an update needs the old app uninstalled first.
-- **iPhone:** no app outside the App Store/TestFlight (Apple developer account needed) – WebTAK in Safari/Bluefy as before.
+- **iPhone:** no app outside the App Store/TestFlight (Apple developer account needed) – TAKweb in Safari/Bluefy as before.
 
-## WebTAK app (map + situational picture on the phone)
+## TAKweb app (map + situational picture on the phone)
 
-At `https://<server>/eud/` there is **WebTAK**, a lean TAK client as a web app (PWA) at ATAK CoT level,
+At `https://<server>/eud/` there is **TAKweb**, a lean TAK client as a web app (PWA) at ATAK CoT level,
 with an **English** user interface (multinational). Runs on Android and iPhone (Safari → Share → "Add to
 Home Screen"). Laid out like ATAK:
 
@@ -215,12 +217,12 @@ Home Screen"). Laid out like ATAK:
   if it is north up, heading up "HDG" (without a sensor by GPS course), again = north up "N".
   The compass button only turns the map – the **own arrow always turns**: GPS course while moving, otherwise the
   phone's compass. Below it "zoom to me".
-- **Permissions after every start:** if location or compass are missing (the iPhone asks again each time WebTAK was
+- **Permissions after every start:** if location or compass are missing (the iPhone asks again each time TAKweb was
   closed and allows the compass only with a tap), a bar appears right away – **ALLOW** asks for both with one tap; if
   still refused it says where to switch it on in the settings.
 - **Gestures like ATAK:** rotating two fingers = rotate the map (only after ~12° so zooming does not wobble; on a PC
   Shift + mouse wheel), pushing two fingers up/down together = tilt – also from the flat map.
-- **Right:** slider for tilting (double tap = flat). When tilted, WebTAK shows a **real 3D map** like
+- **Right:** slider for tilting (double tap = flat). When tilted, TAKweb shows a **real 3D map** like
   WinTAK (MapLibre GL): terrain with elevation, sky and horizon, tilt up to **88°**, symbols stand upright with
   names, routes/areas lie on the terrain, own markers can be moved and tapped in 3D too.
   At 0° it goes back to the flat map (for drawing, measuring, corridor) – with the same extent and the same
@@ -251,7 +253,7 @@ Home Screen"). Laid out like ATAK:
    feeds of the TAK server in the viewer (MJPEG/HLS; RTSP is copied). The viewer behaves like the chat: docked at the
    bottom (landscape: right), minimize = header only, tap the header = large again, fullscreen, close;
    video and chat stack instead of covering each other.
-   **Feeds of other systems:** WebTAK plays HLS (`.m3u8`) in all browsers with hls.js (also OpenTAKServer feeds with `?jwt=…` – the key is passed to all parts of the stream); if it fails, the message shows the video server's answer. RTSP feeds from
+   **Feeds of other systems:** TAKweb plays HLS (`.m3u8`) in all browsers with hls.js (also OpenTAKServer feeds with `?jwt=…` – the key is passed to all parts of the stream); if it fails, the message shows the video server's answer. RTSP feeds from
    OpenTAKServer/MediaMTX (`rtsp://host:8554/path`, as ATAK/iTAK play them) are fetched automatically through the
    HLS output of MediaMTX (`http://host:8888/path/index.m3u8`). This runs through our own server
    (`/api/eud/media`: video files only, the target is checked like the TAK relay) – no mixed content, no CORS.
@@ -275,11 +277,11 @@ date") gets a hint to export it with the data.
 phones cannot show them. On import the server (ffmpeg) turns them into an overview (4096 px) plus full-resolution
 pieces (2048 px, WebP) – zoomed out the overview, zoomed in only the visible pieces; sharp and light (38 MB -> 5 MB).
 
-**Device profile like ATAK (auto-enrollment):** after logging in, WebTAK fetches the TAK server's enrollment profile
+**Device profile like ATAK (auto-enrollment):** after logging in, TAKweb fetches the TAK server's enrollment profile
 once and on every connection the connection profile (only what is new since the last sync). In OpenTAKServer these
 are the data packages marked "install on enrollment/connection", the map sources (they appear under Menu → Maps as
 "… (TAK server)", also for saving offline and 3D) and device profile settings (callsign, team, role – an
-administrator's assignment in WebTAK has priority).
+administrator's assignment in TAKweb has priority).
 
 **Map** (Menu → Map): choose the source (OpenStreetMap, OpenTopoMap, Esri Satellite/Topo or a custom
 URL with `{z}/{x}/{y}`). Tiles go through this server and are cached there under `DATA_DIR/tiles`.
@@ -287,14 +289,14 @@ URL with `{z}/{x}/{y}`). Tiles go through this server and are cached there under
 (width in m) with zoom from/to; saved areas can be shown and deleted. Please only load
 areas you need – the free map services do not allow bulk downloading.
 **Bluefy and other iPhone apps without service workers** (WKWebView): saved areas are kept in the device storage
-(IndexedDB) and shown from there – keep WebTAK open while saving. Open WebTAK once online; then the map also works offline.
+(IndexedDB) and shown from there – keep TAKweb open while saving. Open TAKweb once online; then the map also works offline.
 
 **Without internet:** the app, saved tiles, situational picture and overlays stay on the device. GPS keeps
 running, markers and chats wait in the outbox and go out as soon as the connection is back.
 
-**Meshtastic (LoRa, without internet)** – Menu → **Meshtastic**: WebTAK connects directly to a Meshtastic radio
+**Meshtastic (LoRa, without internet)** – Menu → **Meshtastic**: TAKweb connects directly to a Meshtastic radio
 over Bluetooth (Android: Chrome; iPhone: only in the "Bluefy" app – Safari has no Bluetooth). Positions and chat go
-over LoRa as TAK packets (port 72, like the Meshtastic ATAK plugin), so WebTAK users and ATAK users with the plugin
+over LoRa as TAK packets (port 72, like the Meshtastic ATAK plugin), so TAKweb users and ATAK users with the plugin
 see each other without internet. Players with only the Meshtastic app appear on the map as users like in ATAK
 (team colour from the end of the node name like the plugin: "Hans -5" = Red, without a suffix Cyan), their text
 messages in the chat. **Markers, moving/renaming and deleting** go over LoRa as CoT on port 257 like the plugin
@@ -314,7 +316,7 @@ messages; team and group chats stay on the TAK server (the TAK packets of the pl
   addressed to that device alone, and only the recipient shows them. The other way (online sender → mesh-only device)
   only works when the sender has a radio itself: the TAK server delivers a direct message only to its recipient.
 - **Video:** while a video stream runs (phone or helmet camera) the radio is released and reconnected when the stream ends.
-- If the connection is lost, WebTAK keeps reconnecting; after reloading the page it reconnects by itself where the browser
+- If the connection is lost, TAKweb keeps reconnecting; after reloading the page it reconnects by itself where the browser
   allows it, otherwise tap RECONNECT. The icon above the server status shows the state (green = connected, yellow = connecting or paused for
   video, red = not connected).
 - A radio accepts only one Bluetooth connection: disconnect the Meshtastic app first. Keep the screen on.
@@ -335,7 +337,7 @@ allowed – except the server machine itself (`localhost`) and link-local addres
 Users request real TAK access here; after approval the app creates the account on the
 **OpenTAKServer (OTS)** and the user gets login details, QR codes and an illustrated guide.
 
-> **No OpenTAKServer yet?** [WebTAK Server](https://github.com/fredy060795/5040-WebTAK_Server) is a TAK server in a single
+> **No OpenTAKServer yet?** [TAKweb Server](https://github.com/fredy060795/5040-TAKweb_Server) is a TAK server in a single
 > file for Windows and Raspberry Pi (installs in one step, links several servers via federation) and speaks the same
 > OTS web API. Enter `https://<server>:8443` as OTS address with its admin login and allow the self-signed certificate.
 > Users, groups, roles, ATAK QR codes, truststore, device profiles and missions work; video feeds (MediaMTX) and
@@ -346,7 +348,7 @@ Users request real TAK access here; after approval the app creates the account o
 1. The user opens `https://<server>/join/` (QR code in the admin: "Users & requests" → "Registration QR"), reads
    briefly what TAK can do and sends a request (name, unit, requested callsign, e-mail; optional code word,
    optional e-mail confirmation via SMTP). They get a confirmation e-mail right away
-   ("WebTAK – registration request received", with their personal status link) and see what happens next
+   ("TAKweb – registration request received", with their personal status link) and see what happens next
    after submitting. The **status page** shows a timeline (request → e-mail confirmed if needed → approval →
    login details), refreshes itself and says whether the approval comes by e-mail. The admin gets an e-mail for every new request.
 2. The admin sees the request (notification + list "Open") and approves it – **nothing happens without
@@ -357,7 +359,7 @@ Users request real TAK access here; after approval the app creates the account o
    or the admin gives them the link shown.
 4. On the access page `/access/` (for multinational users): callsign, team, role, server,
    user, password, **truststore download**, QR codes and a step-by-step guide for
-   **ATAK** (Android), **iTAK** (iPhone) and **WebTAK** (the QR opens the EUD with all data, the
+   **ATAK** (Android), **iTAK** (iPhone) and **TAKweb** (the QR opens the EUD with all data, the
    certificate is requested automatically).
 
 **Management** (Admin → Users & requests): search/filter, approve, decline, edit, block/unblock
@@ -368,7 +370,7 @@ Users request real TAK access here; after approval the app creates the account o
 the server; new devices are detected every 2 minutes ("Sync with OTS" forces it right away). In the
 **web EUD** team and role apply immediately and are locked (the relay also enforces them in the sent position);
 the **callsign is only a suggestion and stays editable** – several players can share one login (quick game), each with
-their own callsign. After a login by QR code/link WebTAK asks once to check the callsign; a later change by the admin
+their own callsign. After a login by QR code/link TAKweb asks once to check the callsign; a later change by the admin
 is only taken over if the user kept the previous one. **iTAK** does not apply server profiles – there the user sets callsign/team as shown on the access page.
 
 **ATAK without typing:** the ATAK QR code on the access page is a normal https link – scan it with the phone camera,
@@ -391,7 +393,7 @@ no LDAP.)
 
 **Missions and groups:** OTS only shows users with a group the missions of their IN groups. A mission created
 in the admin without choosing groups therefore gets **all** groups; missions without any group are marked
-"⚠ none – invisible in ATAK/WebTAK" and can be fixed with **Share with all**.
+"⚠ none – invisible in ATAK/TAKweb" and can be fixed with **Share with all**.
 
 **Setup:** Admin → Settings → OpenTAKServer & registration:
 - Address of the OTS web UI/API (e.g. `https://ots.example.com`, or internally `http://127.0.0.1:8081`
@@ -406,35 +408,35 @@ worthless after blocking/deleting. Registrations are limited to 5 per hour and I
 ## Clear map on all devices (after a mission)
 
 Admin → **Clear map (all devices)**: choose what to remove (markers by affiliation, other points, drawings & routes,
-overlays, contacts, chat) and an optional note. Every WebTAK device asks its user right away (or when it connects next):
+overlays, contacts, chat) and an optional note. Every TAKweb device asks its user right away (or when it connects next):
 **CLEAR NOW** removes it, **LATER** asks again at the next connection. Only content from before the request is removed –
 new markers stay – and cleared content does not come back when a TAK server sends it again. A new request replaces the
 old one; "Withdraw request" ends it. ATAK/iTAK/WinTAK are not affected.
 
 ## Federation (TAK servers exchange data)
 
-Admin → TAK server → **Federation**: OpenTAKServer has no federation of its own – WebTAK connects to every listed
+Admin → TAK server → **Federation**: OpenTAKServer has no federation of its own – TAKweb connects to every listed
 server as a TAK client (own certificate per server) and passes data on **in all directions**:
 
 - **Live data** (positions, markers, drawings, chat, deletions) right away to every other server.
 - **Data packages** every N minutes (or "Sync now"): what one server has and another does not is copied – compared
   by SHA-256, so nothing arrives twice; uploaded like ATAK (`/Marti/sync/missionupload`, the server keeps the hash).
-- **No loops, no duplicates:** forwarded CoT carries a marker (`<__webtakfed>`) and is never passed on again; the same
+- **No loops, no duplicates:** forwarded CoT carries a marker (`<__takwebfed>`) and is never passed on again; the same
   event from two servers is forwarded once; pings, mission changes and file transfer requests stay on their server.
 - **Servers:** the own OpenTAKServer from the settings (certificate with the OTS login, automatically) plus any number
   of others: address, ports, and **user + password** (only used to request the certificate – not stored) or a
   **.p12**. An unknown server certificate is asked once (fingerprint). Live data and data packages can be switched
   per server; the table shows status and how much went in/out.
-- What WebTAK sees on a server follows the groups of its certificate user there.
+- What TAKweb sees on a server follows the groups of its certificate user there.
 
-## Managing the TAK server (in the WebTAK admin)
+## Managing the TAK server (in the TAKweb admin)
 
-Under **TAK server** in the sidebar WebTAK manages OpenTAKServer like its own UI:
+Under **TAK server** in the sidebar TAKweb manages OpenTAKServer like its own UI:
 
 - **OTS users:** all accounts from OTS – including those created directly in OTS – with role, active/blocked,
   groups, devices and last login. **New user** creates an account without registration (callsign, optional
   username/password/e-mail, team, role, OTS administrator) and shows the access link. **Import** additionally manages
-  an existing OTS user in WebTAK (callsign, team, access page; optionally a new password and
+  an existing OTS user in TAKweb (callsign, team, access page; optionally a new password and
   team groups). Also: role user/administrator, block/activate, set password, maintain groups (IN/OUT), delete.
 - **Groups:** create, delete (`__ANON__` stays).
 - **Missions (Data Sync):** create (description, password, groups; OTS requires a known device as
@@ -442,19 +444,19 @@ Under **TAK server** in the sidebar WebTAK manages OpenTAKServer like its own UI
 - **Meshtastic:** create channels (name, radio preset, region, generate key, up-/downlink) or import via
   Meshtastic link, copy link, delete.
 
-Users & requests shows **all** WebTAK users by default (open requests on top) – approved users
+Users & requests shows **all** TAKweb users by default (open requests on top) – approved users
 no longer disappear from the list.
 
 ## Admin
 
-**WebTAK admin** in a dark ATAK style with a sidebar – daily work on top, one-time settings at the bottom:
+**TAKweb admin** in a dark ATAK style with a sidebar – daily work on top, one-time settings at the bottom:
 - **TAK:** *Users & requests* (number of open requests, button "Registration QR"), *Teams & visibility*,
-  *Links & QR codes* – **one** server address for all links and QR codes (registration, WebTAK app, camera app);
+  *Links & QR codes* – **one** server address for all links and QR codes (registration, TAKweb app, camera app);
   a change applies everywhere right away, also to the video feeds OTS pulls
 - **TAK server:** *OTS users*, *Groups*, *Missions*, *Meshtastic*
-- **Video:** *Video feeds* (WebTAK cameras and all OTS feeds; switches "Video allowed", "Admin puts streams live"), *Create stream*
+- **Video:** *Video feeds* (TAKweb cameras and all OTS feeds; switches "Video allowed", "Admin puts streams live"), *Create stream*
 - **Settings:** *OpenTAKServer & registration* (connection, passwords, registration – set up once),
-  *WebTAK app*, *System* (admin login, SMTP, defaults for new streams)
+  *TAKweb app*, *System* (admin login, SMTP, defaults for new streams)
 
 - **Helpers** (System → Helpers): separate admin logins that may only approve/decline requests, edit users
   (callsign, team, role, block, new password/QR), create new TAK users and show links/QR codes –
@@ -545,13 +547,17 @@ sudo systemctl daemon-reload && sudo systemctl enable --now helm-camera
 | `PORT` / `BIND` | port and address of the server | `5036` / `0.0.0.0` |
 | `DATA_DIR` | data directory (admin, SMTP, streams) | `./data` |
 | `FFMPEG_PATH` | path to ffmpeg | `ffmpeg` |
-| `MAX_TAK_PER_IP` | WebTAK devices per public IP (players often share one field router / Starlink) | `40` |
-| `WEBTAK_APK_URL` | where `/download/webtak.apk` leads (own build / fork) – a `webtak.apk` in the data folder has priority | release `android` of this repository |
+| `MAX_TAK_PER_IP` | TAKweb devices per public IP (players often share one field router / Starlink) | `40` |
+| `TAKWEB_APK_URL` | where `/download/takweb.apk` leads (own build / fork) – a `takweb.apk` in the data folder has priority | release `android` of this repository |
 | `TLS_CERT` / `TLS_KEY` | HTTPS directly in the server instead of a reverse proxy | – |
 | `TEST_CA_FILE` | test only: CA file offered for download at `/ca.crt` (set by start.bat) | – |
 | `TRUST_PROXY` | `1` = evaluate X-Forwarded headers from the reverse proxy | `1`, with `TLS_CERT` `0` |
 
 All data is stored in `DATA_DIR/db.json` (admin password only as a scrypt hash).
+
+**Updating an installation from before November 2026:** the data (`DATA_DIR`) stays as it is. Rename the environment
+variables to `TAKWEB_*` (e.g. `TAKWEB_APK_URL`). The Android app has a new app ID and link scheme (`takweb://`):
+uninstall the old app on the phones, install TAKweb and open the invitation link again (or scan the QR code).
 
 ## For developers
 

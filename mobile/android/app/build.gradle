@@ -1,15 +1,15 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace "at.webtak.eud"
+    namespace "at.takweb.eud"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "at.webtak.eud"
+        applicationId "at.takweb.eud"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // set by the build (GitHub Actions): every build a higher number so it installs over the previous one
-        versionCode((System.getenv('WEBTAK_VERSION_CODE') ?: '1') as int)
-        versionName(System.getenv('WEBTAK_VERSION_NAME') ?: '1.0')
+        versionCode((System.getenv('TAKWEB_VERSION_CODE') ?: '1') as int)
+        versionName(System.getenv('TAKWEB_VERSION_NAME') ?: '1.0')
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -23,18 +23,18 @@ android {
     // release key from the build environment (GitHub secrets) – the same key for every version, so updates install
     signingConfigs {
         release {
-            def ks = System.getenv('WEBTAK_KEYSTORE_FILE')
+            def ks = System.getenv('TAKWEB_KEYSTORE_FILE')
             if (ks) {
                 storeFile file(ks)
-                storePassword System.getenv('WEBTAK_KEYSTORE_PASSWORD')
-                keyAlias System.getenv('WEBTAK_KEY_ALIAS')
-                keyPassword System.getenv('WEBTAK_KEY_PASSWORD')
+                storePassword System.getenv('TAKWEB_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('TAKWEB_KEY_ALIAS')
+                keyPassword System.getenv('TAKWEB_KEY_PASSWORD')
             }
         }
     }
     buildTypes {
         release {
-            if (System.getenv('WEBTAK_KEYSTORE_FILE')) signingConfig signingConfigs.release
+            if (System.getenv('TAKWEB_KEYSTORE_FILE')) signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

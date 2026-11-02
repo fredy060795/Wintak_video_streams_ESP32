@@ -1,5 +1,5 @@
 # Android app (mobile/): builds the APK. On main it is published as the release "android" –
-# the WebTAK server links to it (/download/webtak.apk → releases/download/android/WebTAK.apk).
+# the TAKweb server links to it (/download/takweb.apk → releases/download/android/TAKweb.apk).
 # Pull requests only build it (check that it compiles).
 name: Android app
 
@@ -35,41 +35,41 @@ jobs:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
           if [ -n "$KEYSTORE_B64" ]; then
-            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/webtak.jks"
-            echo "WEBTAK_KEYSTORE_FILE=$RUNNER_TEMP/webtak.jks" >> "$GITHUB_ENV"
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/takweb.jks"
+            echo "TAKWEB_KEYSTORE_FILE=$RUNNER_TEMP/takweb.jks" >> "$GITHUB_ENV"
           else
             echo "::warning::No ANDROID_KEYSTORE_BASE64 secret – debug-signed APK; an update then needs the old app uninstalled first."
           fi
       - name: Build
         working-directory: mobile/android
         env:
-          WEBTAK_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          WEBTAK_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          WEBTAK_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          WEBTAK_VERSION_CODE: ${{ github.run_number }}
-          WEBTAK_VERSION_NAME: 1.0.${{ github.run_number }}
+          TAKWEB_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          TAKWEB_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          TAKWEB_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          TAKWEB_VERSION_CODE: ${{ github.run_number }}
+          TAKWEB_VERSION_NAME: 1.0.${{ github.run_number }}
         run: |
           chmod +x gradlew
-          if [ -n "$WEBTAK_KEYSTORE_FILE" ]; then
+          if [ -n "$TAKWEB_KEYSTORE_FILE" ]; then
             ./gradlew --no-daemon assembleRelease
-            cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/WebTAK.apk"
+            cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/TAKweb.apk"
           else
             ./gradlew --no-daemon assembleDebug
-            cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/WebTAK.apk"
+            cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/TAKweb.apk"
           fi
       - uses: actions/upload-artifact@v4
         with:
-          name: WebTAK-apk
-          path: WebTAK.apk
+          name: TAKweb-apk
+          path: TAKweb.apk
       - name: Publish (release "android")
         if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          notes="WebTAK for Android, version 1.0.${{ github.run_number }} (${GITHUB_SHA::7}). Install WebTAK.apk, then open the invitation link from your admin and tap 'Open in the WebTAK app'."
+          notes="TAKweb for Android, version 1.0.${{ github.run_number }} (${GITHUB_SHA::7}). Install TAKweb.apk, then open the invitation link from your admin and tap 'Open in the TAKweb app'."
           if gh release view android >/dev/null 2>&1; then
             gh release edit android --notes "$notes"
           else
-            gh release create android --title "WebTAK for Android" --notes "$notes" --latest=false
+            gh release create android --title "TAKweb for Android" --notes "$notes" --latest=false
           fi
-          gh release upload android WebTAK.apk --clobber
+          gh release upload android TAKweb.apk --clobber

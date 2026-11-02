@@ -1,7 +1,7 @@
 {
   "name": "helm-camera-streams",
   "version": "1.0.0",
-  "description": "WebTAK: browser TAK client, TAK access management and helmet camera streams (ESP32-CAM via Bluetooth) for ATAK/WinTAK",
+  "description": "TAKweb: browser TAK client, TAK access management and helmet camera streams (ESP32-CAM via Bluetooth) for ATAK/WinTAK",
   "private": true,
   "main": "server.js",
   "type": "commonjs",

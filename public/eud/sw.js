@@ -1,10 +1,10 @@
 // Service worker: app, libraries and map tiles stay on the device
 // so the EUD starts and shows the map without internet.
 
-const SHELL_CACHE = 'eud-shell-__WEBTAK_VERSION__'; // filled in by the server: every update renews the offline copy
+const SHELL_CACHE = 'eud-shell-__TAKWEB_VERSION__'; // filled in by the server: every update renews the offline copy
 const TILE_CACHE = 'eud-tiles';
 const MAX_TILES = 40000; // saved areas + recently viewed tiles
-const VERSION = '__WEBTAK_VERSION__';
+const VERSION = '__TAKWEB_VERSION__';
 // own files are loaded as file?v=<version> (index.html): page and files always belong to the same version
 const OWN = ['eud.css', 'eud.js', 'view3d.js', 'video.js', 'data.js', 'meshproto.js', 'blenative.js', 'mesh.js', 'tools.js'].map(f => `${f}?v=${VERSION}`);
 const SHELL = [

@@ -1,4 +1,4 @@
-// Admin: clear the map on all WebTAK devices (after a mission) – the devices ask their users (eud.js askMapClear)
+// Admin: clear the map on all TAKweb devices (after a mission) – the devices ask their users (eud.js askMapClear)
 'use strict';
 
 (() => {
@@ -19,8 +19,8 @@
     const q = r.request;
     $('mcWithdraw').classList.toggle('hidden', !q);
     $('mcState').textContent = q
-      ? `Active request from ${new Date(q.time).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}: ${q.cats.map(id => (CATS.find(c => c[0] === id) || [id, id])[1]).join(', ')}${q.note ? ' – "' + q.note + '"' : ''}. WebTAK devices connected right now: ${r.devices}.`
-      : `No active request. WebTAK devices connected right now: ${r.devices}.`;
+      ? `Active request from ${new Date(q.time).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}: ${q.cats.map(id => (CATS.find(c => c[0] === id) || [id, id])[1]).join(', ')}${q.note ? ' – "' + q.note + '"' : ''}. TAKweb devices connected right now: ${r.devices}.`
+      : `No active request. TAKweb devices connected right now: ${r.devices}.`;
   }
   async function load() {
     try { show(await api2()); } catch (e) { setMsg($('mcMsg'), e.message); }
@@ -29,7 +29,7 @@
   $('mcSend').addEventListener('click', async () => {
     const cats = [...$('mcCats').querySelectorAll('input:checked')].map(c => c.value);
     if (!cats.length) return setMsg($('mcMsg'), 'Choose what to clear.');
-    if (!confirm('Ask all WebTAK devices to clear the map?')) return;
+    if (!confirm('Ask all TAKweb devices to clear the map?')) return;
     try {
       const r = await api2({ method: 'POST', body: { cats, note: $('mcNoteIn').value.trim() } });
       setMsg($('mcMsg'), `Request sent – ${r.devices} device(s) online are asked now, the others when they connect.`, true);
