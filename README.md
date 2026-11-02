@@ -421,7 +421,7 @@ reads every group):
 
 - **Situation:** map with everybody (team colour, direction, role, mesh devices marked), tracks of the last 20 min,
   markers and drawings, areas; counters online / offline / hostile / at base / out / mesh; latest events.
-  Filter by role (Team Lead, Squad Leader, Team Member, HQ, Medic, Sniper, RTO, FO, K9) and Meshtastic.
+  Filter by role (Team Lead, Team Member, HQ, Medic, Sniper, RTO, FO, K9) and Meshtastic.
 - **Troops:** list of every user with team, role, online/offline, last seen, area, speed, battery, device; search, team
   and role filters, "online only", ⌖ shows the user on the map.
 - **Geofence:** draw circles and polygons, mark the **base** – leaving it is logged as departure, coming back as arrival

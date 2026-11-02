@@ -8,7 +8,7 @@ const TEAMS = {
   Purple: '#7F007F', 'Dark Blue': '#00007F', Blue: '#0000FF', Cyan: '#00FFFF', Teal: '#007F7F', Green: '#00FF00',
   'Dark Green': '#007F00', Brown: '#A0714F',
 };
-const ROLE_FILTERS = ['Team Lead', 'Squad Leader', 'Team Member', 'HQ', 'Medic', 'Sniper', 'RTO', 'Forward Observer', 'K9'];
+const ROLE_FILTERS = ['Team Lead', 'Team Member', 'HQ', 'Medic', 'Sniper', 'RTO', 'Forward Observer', 'K9'];
 const fmtTime = t => new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const fmtDate = t => new Date(t).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 const ago = t => { const s = Math.round((Date.now() - t) / 1000); return s < 60 ? `${s} s` : s < 3600 ? `${Math.round(s / 60)} min` : `${Math.floor(s / 3600)} h ${Math.round(s % 3600 / 60)} min`; };
