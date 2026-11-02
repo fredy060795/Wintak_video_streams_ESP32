@@ -85,3 +85,19 @@ test('hq: situation log, units with status, CSV, events since', () => {
   assert.equal(hq.state(st.seq).events.length, 0);
   assert.ok(hq.removeLog(st.log[0].id));
 });
+
+test('hq: clean up – earlier events hidden, offline users and map objects out of the view, the log stays', () => {
+  const { hq } = make();
+  hq.cot(pli('A', 47, 11, { cs: 'ALPHA 1' }));
+  hq.cot(pli('B', 47, 11, { cs: 'BRAVO 1' }));
+  hq.live.get('B').offline = true;
+  hq.cot(marker('F1', 'a-f-G', 'A'));
+  hq.addLog({ text: 'Mission start' });
+  const before = Date.now();
+  hq.clear(['events', 'offline', 'objects']);
+  const st = hq.state();
+  assert.ok(st.clearedAt >= before);
+  assert.deepEqual(st.devices.map(d => d.uid), ['A']);
+  assert.equal(st.objects.length, 0);
+  assert.equal(st.log.length, 1, 'the situation log stays');
+});

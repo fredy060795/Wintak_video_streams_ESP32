@@ -1008,6 +1008,7 @@ async function handleHq(req, res, route, method) {
     if (route === 'units' && method === 'POST') { const units = hq.setUnits(body.units); store.save(); return json(res, 200, { units }); }
     const um = /^units\/([a-f0-9]{10})\/status$/.exec(route);
     if (um && method === 'POST') { hq.setUnitStatus(um[1], String(body.status || '')); store.save(); return json(res, 200, { ok: true }); }
+    if (route === 'clear' && method === 'POST') { hq.clear(Array.isArray(body.what) ? body.what : []); store.save(); return json(res, 200, { ok: true }); }
     if (route === 'fences' && method === 'POST') { const fences = hq.setFences(body.fences); store.save(); return json(res, 200, { fences }); }
     if (route === 'settings' && method === 'POST') {
       hq.d().enabled = body.enabled !== false;

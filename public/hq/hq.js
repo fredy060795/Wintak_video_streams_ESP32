@@ -114,13 +114,16 @@ function beep() {
 }
 document.addEventListener('click', () => { try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume(); } catch (e) { /* no sound */ } }, { once: true });
 
-let alertEv = null;
+let alertEv = null, alertTimer = null;
+const ALERT_MS = 10000; // the big monitor in the HQ: nobody has to click it away
 function notify(e) {
   if (e.kind === 'hostile') {
     alertEv = e;
     $('alertText').textContent = e.text;
     $('alertTime').textContent = fmtDate(e.t);
     $('alert').classList.remove('hidden');
+    clearTimeout(alertTimer);
+    alertTimer = setTimeout(() => $('alert').classList.add('hidden'), ALERT_MS);
     beep();
   } else if (e.alert && /^fence/.test(e.kind)) {
     toast(e.text, e.kind);
@@ -249,21 +252,18 @@ function fenceLayer(f) {
 }
 
 // ---------------- situation map ----------------
-const ov = { devs: L.layerGroup(), objs: L.layerGroup(), fences: L.layerGroup(), trails: L.layerGroup(), fitted: false, objKey: '' };
+// no tracks here (the overview stays calm on the big monitor) – tracks are in the mission recording
+const ov = { devs: L.layerGroup(), objs: L.layerGroup(), fences: L.layerGroup(), fitted: false, objKey: '' };
 function renderOverview() {
   if (!maps.overview) {
     maps.overview = makeMap('mapOverview');
-    for (const k of ['fences', 'trails', 'objs', 'devs']) ov[k].addTo(maps.overview);
-    L.control.layers(null, { 'Tracks (last 20 min)': ov.trails, 'Markers & drawings': ov.objs, 'Areas': ov.fences }, { position: 'topleft' }).addTo(maps.overview);
+    for (const k of ['fences', 'objs', 'devs']) ov[k].addTo(maps.overview);
+    L.control.layers(null, { 'Markers & drawings': ov.objs, 'Areas': ov.fences }, { position: 'topleft' }).addTo(maps.overview);
   }
   renderFilters($('ovFilters'));
   const shown = S.devices.filter(passes);
   ov.devs.clearLayers();
-  ov.trails.clearLayers();
-  const since = Date.now() - 20 * 60000;
   for (const d of shown) {
-    const t = d.trail.filter(p => p[0] >= since).map(p => [p[1], p[2]]);
-    if (t.length > 1) ov.trails.addLayer(L.polyline(t, { color: TEAMS[d.team] || '#0ff', weight: 2, opacity: 0.6 }));
     ov.devs.addLayer(L.marker([d.lat, d.lon], { icon: deviceIcon(d), zIndexOffset: 1000 })
       .bindTooltip(`${esc(d.callsign)}${d.role && d.role !== 'Team Member' ? ' · ' + esc(d.role) : ''}`, { permanent: true, direction: 'right', offset: [10, 0], className: 'lbl' })
       .bindPopup(`<b>${esc(d.callsign)}</b><br>${esc(d.team || '')} · ${esc(roleOf(d))}<br>${d.online ? 'online' : 'offline'} · last ${ago(d.time)} ago${d.battery ? '<br>battery ' + d.battery + ' %' : ''}${d.speed > 0.5 ? '<br>' + (d.speed * 3.6).toFixed(0) + ' km/h' : ''}`));
@@ -284,8 +284,23 @@ function renderOverview() {
   const count = (n, label, cls = '') => el('div', { class: 'count ' + cls }, el('b', { text: String(n) }), el('span', { text: label }));
   $('ovCounts').replaceChildren(count(online.length, 'online'), count(S.devices.length - online.length, 'offline'), count(hostile, 'hostile', 'hostile'),
     count(base.length ? atBase : '–', 'at base'), count(base.length ? online.length - atBase : '–', 'out'), count(S.devices.filter(d => d.mesh).length, 'mesh'));
-  renderEvents($('ovEvents'), allEvents.filter(e => !(e.kind === 'log' && e.auto)).slice(-30).reverse());
+  renderEvents($('ovEvents'), visibleEvents().filter(e => !(e.kind === 'log' && e.auto)).slice(-30).reverse());
 }
+
+// events since the last clean-up (shared by every HQ page) and within the chosen time window
+function visibleEvents() {
+  const win = Number($('ovWindow').value) || 0;
+  const from = Math.max(S.clearedAt || 0, win ? Date.now() - win * 60000 : 0);
+  return allEvents.filter(e => e.t >= from);
+}
+$('ovWindow').addEventListener('change', () => { try { localStorage.setItem('hq.window', $('ovWindow').value); } catch (e) { /* private mode */ } render(); });
+try { $('ovWindow').value = localStorage.getItem('hq.window') || '60'; } catch (e) { /* private mode */ }
+$('ovClean').addEventListener('click', async () => {
+  const what = [...document.querySelectorAll('#ovCleanBox input:checked')].map(c => c.value);
+  if (!what.length) return;
+  if (!confirm('Clean up the situation for all HQ screens? (The situation log and the recordings stay.)')) return;
+  try { await api('clear', { method: 'POST', body: { what } }); toast('Situation cleaned up.'); } catch (e) { toast(e.message); }
+});
 
 function renderEvents(box, list) {
   box.replaceChildren(...list.map(e => el('li', { class: e.kind }, el('time', { text: fmtTime(e.t) }), e.text)));

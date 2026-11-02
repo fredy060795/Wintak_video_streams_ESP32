@@ -433,8 +433,11 @@ Admin → **HQ** (or `/hq/` on the admin address, admin login) opens the HQ page
 current page in a new window, **⛶** full screen. Live from the own TAK server (TAKweb's connection `takweb_recorder`,
 reads every group):
 
-- **Situation:** map with everybody (team colour, direction, role, mesh devices marked), tracks of the last 20 min,
-  markers and drawings, areas; counters online / offline / hostile / at base / out / mesh; latest events.
+- **Situation:** map with everybody (team colour, direction, role, mesh devices marked), markers and drawings, areas –
+  no tracks, so it stays calm on a big monitor (tracks: mission recording); counters online / offline / hostile / at base
+  / out / mesh; latest events of the last 15 min / 1 h / 3 h / all. **🧹 Clean up** (long missions, for all HQ screens):
+  hide earlier events, remove offline users, remove markers and drawings from the view – the situation log, the events
+  page and recordings stay complete.
   Filter by role (Team Lead, Team Member, HQ, Medic, Sniper, RTO, FO, K9) and Meshtastic.
 - **Troops:** list of every user with team, role, online/offline, last seen, area, speed, battery, device; search, team
   and role filters, "online only", ⌖ shows the user on the map.
@@ -448,7 +451,7 @@ reads every group):
   as CoT, TAKweb helmet/phone cameras.
 - **Events:** everything that happened, filterable.
 - **Hostile warning:** a new hostile marker (a-h-…) opens a warning with sound on every HQ page – text, remarks, who set
-  it, "Show on map"; also logged as an enemy report. What the server sends again right after connecting is no warning.
+  it, "Show on map" – closes by itself after 10 s (nobody has to click on the big monitor); also logged as an enemy report. What the server sends again right after connecting is no warning.
 
 Planned next: APRS input for external GPS devices and a radio log (USB audio or SDR stick with speech-to-text).
 
