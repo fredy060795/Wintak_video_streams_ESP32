@@ -413,6 +413,31 @@ overlays, contacts, chat) and an optional note. Every TAKweb device asks its use
 new markers stay – and cleared content does not come back when a TAK server sends it again. A new request replaces the
 old one; "Withdraw request" ends it. ATAK/iTAK/WinTAK are not affected.
 
+## HQ (operations room)
+
+Admin → **HQ** (or `/hq/` on the admin address, admin login) opens the HQ pages – one per monitor: **⧉** opens the
+current page in a new window, **⛶** full screen. Live from the own TAK server (TAKweb's connection `takweb_recorder`,
+reads every group):
+
+- **Situation:** map with everybody (team colour, direction, role, mesh devices marked), tracks of the last 20 min,
+  markers and drawings, areas; counters online / offline / hostile / at base / out / mesh; latest events.
+  Filter by role (Team Lead, Squad Leader, Team Member, HQ, Medic, Sniper, RTO, FO, K9) and Meshtastic.
+- **Troops:** list of every user with team, role, online/offline, last seen, area, speed, battery, device; search, team
+  and role filters, "online only", ⌖ shows the user on the map.
+- **Geofence:** draw circles and polygons, mark the **base** – leaving it is logged as departure, coming back as arrival
+  (situation log, with time); notification when somebody enters/leaves an area.
+- **Situation log** (like a TSL): troop list with kind, strength, status (Ready, Moving, In action, Break, Casualty, Out)
+  and the TAK callsigns of each unit (how many are online); log entries with time, from, to, kind (Request, Troop report,
+  Enemy report, Report, Medical, Departure, Arrival, Other) – Enter logs; medical report (MIST with priority); CSV export.
+  Departures/arrivals, hostile markers and status changes are logged by themselves.
+- **Video wall:** 1, 4 or 9 tiles, each with a source: feeds of the TAK server (MediaMTX), drone and other videos sent
+  as CoT, TAKweb helmet/phone cameras.
+- **Events:** everything that happened, filterable.
+- **Hostile warning:** a new hostile marker (a-h-…) opens a warning with sound on every HQ page – text, remarks, who set
+  it, "Show on map"; also logged as an enemy report. What the server sends again right after connecting is no warning.
+
+Planned next: APRS input for external GPS devices and a radio log (USB audio or SDR stick with speech-to-text).
+
 ## Mission tracks (record & replay)
 
 Admin → **Mission tracks & replay**:

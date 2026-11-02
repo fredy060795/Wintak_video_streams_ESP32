@@ -779,6 +779,24 @@ test('mission tracks: admin API (without OpenTAKServer nothing is recorded)', as
   assert.equal((await fetch(base + '/api/admin/tracks')).status, 401, 'admin only');
 });
 
+test('HQ: page and API only with the admin login; situation log, units, geofences', async () => {
+  assert.equal((await fetch(base + '/hq/')).status, 200);
+  assert.equal((await fetch(base + '/api/admin/hq/state')).status, 401);
+  let r = await api('hq/log', { method: 'POST', body: { from: 'Alpha', to: 'HQ', kind: 'Request', text: 'Need water' } });
+  assert.equal(r.status, 200);
+  r = await api('hq/units', { method: 'POST', body: { units: [{ name: 'Alpha', kind: 'Squad', strength: 8, callsigns: ['ALPHA 1'] }] } });
+  const id = r.data.units[0].id;
+  assert.equal((await api(`hq/units/${id}/status`, { method: 'POST', body: { status: 'Moving' } })).status, 200);
+  r = await api('hq/fences', { method: 'POST', body: { fences: [{ name: 'Base', kind: 'circle', lat: 47, lon: 11, radius: 250, base: true }] } });
+  assert.equal(r.data.fences[0].radius, 250);
+  r = await api('hq/state');
+  assert.deepEqual(r.data.log.map(e => e.kind), ['Request', 'Troop report']);
+  assert.equal(r.data.units[0].status, 'Moving');
+  assert.equal(r.data.fences.length, 1);
+  const csv = await fetch(base + '/api/admin/hq/log.csv', { headers: { cookie } });
+  assert.match(await csv.text(), /Need water/);
+});
+
 test('helpers: may approve and create users, but not change settings', async () => {
   const { createMockOts } = require('./ots-mock');
   const mock = createMockOts();

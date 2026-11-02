@@ -33,6 +33,7 @@ const { proxyMedia } = require('./lib/mediaproxy');
 const { KlvFeeds } = require('./lib/klvfeed');
 const { Federation } = require('./lib/federation');
 const { Tracks, stateOf } = require('./lib/tracks');
+const { Hq } = require('./lib/hq');
 const raster = require('./lib/raster');
 
 const config = {
@@ -706,7 +707,8 @@ function takPorts() {
 function otsMedia(req) {
   if (!takUsers.otsConfigured()) return null;
   const ip = clientIp(req);
-  if (![...takLinks.values()].some(l => l.ip === ip && l.state === 'connected')) return null;
+  const hqUser = !!auth.check(cookies(req).sid); // HQ pages (logged in to the admin)
+  if (!hqUser && ![...takLinks.values()].some(l => l.ip === ip && l.state === 'connected')) return null;
   let base;
   try { base = new URL(takUsers.t.ots.url); } catch (e) { return null; }
   return async (url, { fresh }) => {
@@ -839,6 +841,9 @@ function trackAccept(m, uid, callsign) {
   const groups = (e && who.groups.get(e.username)) || [];
   return groups.some(g => w.groups.includes(g));
 }
+// HQ pages: live picture, geofences, warnings, situation log (lib/hq.js)
+const hq = new Hq({ data: () => store.data.hq || (store.data.hq = {}), save: () => store.save(), log });
+setInterval(() => hq.sweep(), 60000).unref();
 const tracks = new Tracks({
   dir: path.join(config.dataDir, 'tracks'), data: tracksData, save: () => store.save(), log, accept: trackAccept,
   onChange: () => recApply().catch(e => log('Mission tracks: ' + e.message)),
@@ -859,9 +864,9 @@ async function recUser() {
   await ots.syncGroups(d.user.username, [...groups].map(group => ({ group, direction: 'OUT' })), '', []);
   return d.user;
 }
-// while a mission is recorded: connected to the own TAK server, receives every position and map object
+// for the HQ pages and while a mission is recorded: connected to the own TAK server, receives every position and object
 async function recApply() {
-  const want = !!tracks.active() && takUsers.otsConfigured();
+  const want = (!!tracks.active() || hq.enabled()) && takUsers.otsConfigured();
   if (!want) {
     if (recLink) { recLink.stop(); recLink = null; }
     Object.assign(recState, { state: 'off', message: tracks.active() ? 'OpenTAKServer is not set up – nothing is recorded.' : '' });
@@ -887,17 +892,18 @@ async function recApply() {
     Object.assign(recState, { state: 'error', message: 'Recorder at the TAK server not ready – ' + e.message });
     return recState.message;
   }
-  if (recLink || !tracks.active()) return '';
+  if (recLink || !(tracks.active() || hq.enabled())) return '';
   whoRefresh(true);
   recLink = new tak.TakLink({
     host: l.host, altHost: l.altHost, port: l.port, proto: 'ssl', certPem: d.certPem, keyPem: d.keyPem, caPems: d.caPems, fingerprint: d.fingerprint || '',
-    uid: recUid(), hello: 'TAKweb recorder',
+    uid: recUid(), hello: 'TAKweb HQ',
     onStatus: (state, message) => {
-      if (recState.state !== state) log(`Mission tracks: ${message || state}`);
+      if (recState.state !== state) log(`TAK server (HQ/tracks): ${message || state}`);
+      if (state === 'connected') hq.connected();
       Object.assign(recState, { state, message: message || '' });
       if (/rejected the client certificate/.test(message || '')) { d.certPem = ''; store.save(); } // e.g. revoked: a new one next time
     },
-    onCot: xml => tracks.cot(xml),
+    onCot: xml => { tracks.cot(xml); hq.cot(xml); },
   });
   recLink.start();
   return '';
@@ -961,6 +967,54 @@ async function handleTracks(req, res, route, method) {
     res.writeHead(200, { 'Content-Type': kml ? 'application/vnd.google-earth.kml+xml' : 'application/gpx+xml', 'Content-Disposition': `attachment; filename="${name}"` });
     return res.end(kml ? tracks.kml(mission.id) : tracks.gpx(mission.id));
   }
+  return json(res, 404, { error: 'Not found' });
+}
+
+// ---------------- HQ pages ----------------
+// video sources for the video wall: feeds of the TAK server (MediaMTX), TAKweb camera streams, videos in CoT (drones …)
+async function hqFeeds(req) {
+  const out = [];
+  if (takUsers.otsConfigured()) {
+    try {
+      const base = new URL(takUsers.t.ots.url);
+      for (const f of await takUsers.ots().videoStreams()) out.push({ name: f.path, kind: 'TAK server', url: new URL('/hls/' + f.path + '/index.m3u8', base).href });
+    } catch (e) { /* OTS not reachable */ }
+  }
+  for (const e of Object.values(store.data.streams || {})) {
+    if (!hub.live(StreamHub.id(e.user, e.streamId))) continue;
+    out.push({ name: e.label || `${e.user}/${e.streamId}`, kind: 'Camera', url: links(req, e).stream, mjpeg: true });
+  }
+  const seen = new Set(out.map(x => x.url));
+  const st = hq.state(Infinity);
+  for (const x of [...st.devices, ...st.objects]) if (x.video && !seen.has(x.video)) { seen.add(x.video); out.push({ name: x.callsign || x.uid, kind: /UAS|drone/i.test(x.uid + x.callsign) || /^a-.-A/.test(x.type) ? 'Drone' : 'Video', url: x.video }); }
+  return out;
+}
+async function handleHq(req, res, route, method) {
+  if (route === 'state' && method === 'GET') {
+    const since = Number(new URL(req.url, 'http://x').searchParams.get('since')) || 0;
+    return json(res, 200, { ...hq.state(since), source: { ...recState, available: takUsers.otsConfigured() }, recording: (() => { const m = tracks.active(); return m ? { id: m.id, name: m.name, start: m.start } : null; })() });
+  }
+  if (route === 'feeds' && method === 'GET') return json(res, 200, { feeds: await hqFeeds(req) });
+  if (route === 'log.csv' && method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="situation-log.csv"' });
+    return res.end('\ufeff' + hq.csv());
+  }
+  const body = method === 'POST' ? await readJson(req) : {};
+  try {
+    if (route === 'log' && method === 'POST') { hq.addLog(body); store.save(); return json(res, 200, { ok: true }); }
+    const lm = /^log\/([a-f0-9]{10})$/.exec(route);
+    if (lm && method === 'DELETE') { hq.removeLog(lm[1]); return json(res, 200, { ok: true }); }
+    if (route === 'units' && method === 'POST') { const units = hq.setUnits(body.units); store.save(); return json(res, 200, { units }); }
+    const um = /^units\/([a-f0-9]{10})\/status$/.exec(route);
+    if (um && method === 'POST') { hq.setUnitStatus(um[1], String(body.status || '')); store.save(); return json(res, 200, { ok: true }); }
+    if (route === 'fences' && method === 'POST') { const fences = hq.setFences(body.fences); store.save(); return json(res, 200, { fences }); }
+    if (route === 'settings' && method === 'POST') {
+      hq.d().enabled = body.enabled !== false;
+      store.save();
+      const warning = await recApply();
+      return json(res, 200, { ok: true, warning });
+    }
+  } catch (e) { return json(res, 400, { error: e.message }); }
   return json(res, 404, { error: 'Not found' });
 }
 
@@ -1302,6 +1356,7 @@ async function handleAdminApi(req, res, route) {
   if (route.startsWith('ots/')) return await handleOtsAdmin(req, res, route.slice(4));
   if (route === 'federation' || route.startsWith('federation/')) return await handleFederation(req, res, route.slice(11), method);
   if (route === 'tracks' || route.startsWith('tracks/')) return await handleTracks(req, res, route.slice(7), method);
+  if (route === 'hq' || route.startsWith('hq/')) return await handleHq(req, res, route.slice(3).replace(/^\//, ''), method);
   if (route === 'takvideo' && method === 'GET') return json(res, 200, takVideo.state());
   if (route === 'takvideo/settings' && method === 'POST') { takVideo.setSettings(await readJson(req)); return json(res, 200, takVideo.state()); }
   if (route === 'takvideo/sync' && method === 'POST') { const r = await takVideo.syncAll(); return json(res, 200, { ...r, ...takVideo.state() }); }
@@ -1597,6 +1652,11 @@ async function handle(req, res) {
     if (p.startsWith('/admin/')) {
       if (!admin) return send(res, 404, 'Not found');
       return serveStatic(res, 'admin', decodeURIComponent(p.slice(7)));
+    }
+    if (p === '/hq') return send(res, 302, '', 'text/plain', { Location: '/hq/' });
+    if (p.startsWith('/hq/')) {
+      if (!admin) return send(res, 404, 'Not found');
+      return serveStatic(res, 'hq', decodeURIComponent(p.slice(4)));
     }
     if (p.startsWith('/api/admin/')) {
       if (!admin) return json(res, 404, { error: 'Not found' });
