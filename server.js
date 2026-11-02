@@ -32,6 +32,7 @@ const { atakPackage } = require('./lib/datapackage');
 const { proxyMedia } = require('./lib/mediaproxy');
 const { KlvFeeds } = require('./lib/klvfeed');
 const { Federation } = require('./lib/federation');
+const { Tracks } = require('./lib/tracks');
 const raster = require('./lib/raster');
 
 const config = {
@@ -802,6 +803,77 @@ async function fedLocalCert() {
   }
 }
 
+// ---------------- Mission tracks: record every user's position, replay afterwards ----------------
+// store.data.tracks = { certPem, keyPem, caPems, fingerprint (TAKweb's client certificate on the own TAK server), missions: [...] }
+const tracksData = () => store.data.tracks || (store.data.tracks = {});
+const tracks = new Tracks({ dir: path.join(config.dataDir, 'tracks'), data: tracksData, save: () => store.save(), log });
+let recLink = null;
+const recState = { state: 'off', message: '' };
+// while a mission is recorded: connected to the own TAK server as a silent client (receives every position)
+async function recApply() {
+  const want = !!tracks.active() && takUsers.otsConfigured();
+  if (!want) {
+    if (recLink) { recLink.closed = true; clearTimeout(recLink.timer); if (recLink.sock) recLink.sock.destroy(); recLink = null; }
+    Object.assign(recState, { state: 'off', message: tracks.active() ? 'OpenTAKServer is not set up – nothing is recorded.' : '' });
+    return recState.message;
+  }
+  if (recLink) return '';
+  const d = tracksData(), l = fedLocal(), o = takUsers.t.ots;
+  if (!d.certPem) {
+    const req = { host: l.altHost || l.host, port: l.enrollPort, username: o.username, password: o.password, uid: 'TAKWEB-REC-' + fedConfig().id, caPems: d.caPems || [] };
+    try {
+      let r;
+      try { r = await tak.enroll(req); } catch (e) { if (e.code !== 'UNTRUSTED') throw e; d.fingerprint = e.fingerprint; r = await tak.enroll({ ...req, fingerprint: e.fingerprint }); }
+      Object.assign(d, { certPem: r.certPem, keyPem: r.keyPem, caPems: r.caPems || [] });
+      store.save();
+    } catch (e) {
+      Object.assign(recState, { state: 'error', message: 'Certificate request at the TAK server failed – ' + e.message });
+      return recState.message;
+    }
+  }
+  recLink = new tak.TakLink({
+    host: l.host, altHost: l.altHost, port: l.port, proto: 'ssl', certPem: d.certPem, keyPem: d.keyPem, caPems: d.caPems, fingerprint: d.fingerprint || '',
+    uid: 'TAKWEB-REC-' + fedConfig().id,
+    onStatus: (state, message) => { if (recState.state !== state) log(`Mission tracks: ${message || state}`); Object.assign(recState, { state, message: message || '' }); },
+    onCot: xml => tracks.cot(xml),
+  });
+  recLink.start();
+  return '';
+}
+const missionSummary = m => ({ id: m.id, name: m.name, start: m.start, end: m.end, points: m.points, users: Object.keys(m.users).length });
+function tracksView() {
+  return { available: takUsers.otsConfigured(), source: { ...recState }, missions: tracks.missions().map(missionSummary) };
+}
+async function handleTracks(req, res, route, method) {
+  if (route === '' && method === 'GET') return json(res, 200, tracksView());
+  if (route === '' && method === 'POST') {
+    if (!takUsers.otsConfigured()) return json(res, 400, { error: 'Set up OpenTAKServer first (OpenTAKServer & registration) – the positions come from there.' });
+    const body = await readJson(req);
+    try { tracks.start(body.name); } catch (e) { return json(res, 409, { error: e.message }); }
+    const warning = await recApply();
+    return json(res, 200, { ...tracksView(), warning });
+  }
+  const m = /^([a-f0-9]{12})(?:\/(stop|points|export\.gpx|export\.kml))?$/.exec(route);
+  const mission = m && tracks.get(m[1]);
+  if (!mission) return json(res, 404, { error: 'Mission not found.' });
+  if (!m[2] && method === 'GET') return json(res, 200, { mission });
+  if (!m[2] && method === 'POST') { tracks.rename(mission.id, (await readJson(req)).name); return json(res, 200, tracksView()); }
+  if (!m[2] && method === 'DELETE') { tracks.remove(mission.id); await recApply(); log('Mission deleted:', mission.name); return json(res, 200, tracksView()); }
+  if (m[2] === 'stop' && method === 'POST') { if (!mission.end) tracks.stop(); await recApply(); return json(res, 200, tracksView()); }
+  if (m[2] === 'points' && method === 'GET') {
+    const users = {};
+    for (const [uid, u] of Object.entries(mission.users)) users[uid] = { callsign: u.callsign, team: u.team, role: u.role, first: u.first, last: u.last, points: u.points, meters: u.meters };
+    return json(res, 200, { mission: missionSummary(mission), users, points: tracks.points(mission.id) });
+  }
+  if (m[2] && m[2].startsWith('export') && method === 'GET') {
+    const kml = m[2].endsWith('kml');
+    const name = (mission.name.replace(/[^\w.-]+/g, '_') || 'mission') + (kml ? '.kml' : '.gpx');
+    res.writeHead(200, { 'Content-Type': kml ? 'application/vnd.google-earth.kml+xml' : 'application/gpx+xml', 'Content-Disposition': `attachment; filename="${name}"` });
+    return res.end(kml ? tracks.kml(mission.id) : tracks.gpx(mission.id));
+  }
+  return json(res, 404, { error: 'Not found' });
+}
+
 function fedView() {
   const f = fedConfig();
   const st = federation.state();
@@ -1139,6 +1211,7 @@ async function handleAdminApi(req, res, route) {
   if (route.startsWith('takusers/')) return await handleTakAdmin(req, res, route.slice(9));
   if (route.startsWith('ots/')) return await handleOtsAdmin(req, res, route.slice(4));
   if (route === 'federation' || route.startsWith('federation/')) return await handleFederation(req, res, route.slice(11), method);
+  if (route === 'tracks' || route.startsWith('tracks/')) return await handleTracks(req, res, route.slice(7), method);
   if (route === 'takvideo' && method === 'GET') return json(res, 200, takVideo.state());
   if (route === 'takvideo/settings' && method === 'POST') { takVideo.setSettings(await readJson(req)); return json(res, 200, takVideo.state()); }
   if (route === 'takvideo/sync' && method === 'POST') { const r = await takVideo.syncAll(); return json(res, 200, { ...r, ...takVideo.state() }); }
@@ -1692,12 +1765,15 @@ server.listen(config.port, config.bind, () => {
   log(ffmpegOk ? 'ffmpeg found: HLS and MPEG-TS available' : 'ffmpeg not found: MJPEG only');
   if (store.data.admin.mustChange) log('First start: admin login admin / admin123 – the password is changed at the first login.');
   federation.apply(); // TAK server federation (if switched on)
+  recApply().catch(e => log('Mission tracks: ' + e.message)); // a recording that was running before the restart
 });
 
 function shutdown() {
   log('Server shutting down');
   hub.shutdown();
   federation.stop();
+  if (recLink) { recLink.closed = true; clearTimeout(recLink.timer); if (recLink.sock) recLink.sock.destroy(); }
+  if (tracks.active()) try { store.save(); } catch (e) { /* data folder gone */ } // summary of a running recording
   klvFeeds.close();
   for (const c of wss.clients) c.close(1001, 'server shutdown');
   server.close(() => process.exit(0));

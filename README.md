@@ -413,6 +413,18 @@ overlays, contacts, chat) and an optional note. Every TAKweb device asks its use
 new markers stay – and cleared content does not come back when a TAK server sends it again. A new request replaces the
 old one; "Withdraw request" ends it. ATAK/iTAK/WinTAK are not affected.
 
+## Mission tracks (record & replay)
+
+Admin → **Mission tracks & replay**: enter a mission name and **Start recording**. Until you stop, TAKweb listens to the own
+TAK server (OpenTAKServer from the settings) as a silent client with its own certificate and keeps the position of **every**
+user – ATAK, iTAK, WinTAK, TAKweb and Meshtastic users passed on by a gateway – at most one point every 5 s per user
+(one a minute when standing still). A recording goes on after a server restart.
+
+The list shows every mission with start, end, duration, users and points. **Replay** opens a map with every user's track:
+time slider, play at 1× to 1200×, the position of each user at that moment (interpolated), the track so far or the whole
+track, per user team/role, first/last position and distance. **GPX** and **KML** download the tracks (KML with time
+stamps – Google Earth replays it with its time slider). Tracks are stored in `DATA_DIR/tracks/` until the mission is deleted.
+
 ## Federation (TAK servers exchange data)
 
 Admin → TAK server → **Federation**: OpenTAKServer has no federation of its own – TAKweb connects to every listed
