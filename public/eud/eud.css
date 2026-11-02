@@ -302,7 +302,7 @@ code { display: block; padding: 8px; border-radius: 3px; background: #0f1216; wo
 .chat-foot { display: flex; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--line); background: var(--sheet-head); }
 .chat-foot input { flex: 1; min-width: 0; padding: 8px 4px; background: transparent; border: none; border-bottom: 1px solid var(--mut); color: #fff; font: 16px var(--font); }
 .chat-foot input:focus { outline: none; border-bottom-color: var(--blue); }
-.chat-send { padding: 8px 14px; background: #1f4f6a; border: 1px solid #2c6f93; border-radius: 3px; font: 500 14px var(--font); }
+.chat-send { flex: none; padding: 8px 14px; background: #1f4f6a; border: 1px solid #2c6f93; border-radius: 3px; font: 500 14px var(--font); }
 
 /* Drawing a corridor */
 #drawBar { position: fixed; z-index: 7200; left: 0; right: 0; bottom: 0; padding: 8px 10px calc(8px + var(--bottom)); background: var(--sheet); border-top: 1px solid var(--line); }
@@ -462,8 +462,9 @@ a.mbtn { color: #fff; text-decoration: none; box-sizing: border-box; }
 .vc-vol input { flex: 1; }
 
 /* voice messages in the chat (voice.js) */
-.chat-mic { width: 44px; background: none; border: none; font-size: 20px; color: #fff; }
-.chat-mic.rec { color: #ff5b4f; animation: vc-blink 1s infinite; }
+.chat-mic { flex: none; width: 42px; display: flex; align-items: center; justify-content: center; background: #2a2f36; border: 1px solid #4a525c; border-radius: 3px; color: #fff; }
+.chat-mic svg { display: block; }
+.chat-mic.rec { background: #b3261e; border-color: #ff6b5e; }
 @keyframes vc-blink { 50% { opacity: .4; } }
 .rec-bar { display: flex; align-items: center; gap: 6px; flex: 1; color: #ff8a80; font-variant-numeric: tabular-nums; }
 .rec-bar button { background: none; border: none; color: #fff; font-size: 18px; margin-left: auto; }
