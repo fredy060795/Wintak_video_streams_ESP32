@@ -195,6 +195,8 @@
   <div class="chat-msgs" id="chatLog"></div>
   <form class="chat-foot" id="chatForm">
     <input id="chatIn" autocomplete="off" placeholder="Type message…" maxlength="500">
+    <span id="recBar" class="rec-bar hidden"><span class="rec-dot"></span> <span id="recTime">0:00</span> <button type="button" id="recCancel" title="Discard">✕</button></span>
+    <button type="button" id="chatMic" class="chat-mic" title="Voice message (tap to record, tap again to send)">🎤</button>
     <button type="submit" class="chat-send">SEND</button>
   </form>
 </section>

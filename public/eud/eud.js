@@ -830,6 +830,17 @@ function renderChat() {
     txt.className = 'cm-t';
     txt.textContent = m.text;
     d.append(h, txt);
+    // voice message (voice.js): a player right in the chat
+    const vm = /(https?:\/\/[^\s]+\/voicemsg\/[a-f0-9]{32}\.wav)/.exec(m.text || '');
+    if (vm) {
+      const a = document.createElement('audio');
+      a.controls = true;
+      a.preload = 'none';
+      a.src = new URL(vm[1]).origin === location.origin ? vm[1] : new URL(new URL(vm[1]).pathname, location.href).href;
+      a.className = 'cm-audio';
+      txt.textContent = m.text.replace(vm[1], '').trim();
+      d.append(a);
+    }
     log.append(d);
   }
   log.scrollTop = log.scrollHeight;
@@ -893,18 +904,22 @@ $('btnChat').addEventListener('click', () => ($('chatWin').classList.contains('h
 $('chatClose').addEventListener('click', closeChat);
 $('chatMin').addEventListener('click', e => { e.stopPropagation(); $('chatWin').classList.toggle('min'); chatToEnd(); });
 document.querySelector('.chat-head').addEventListener('click', e => { if (e.target.closest('button')) return; $('chatWin').classList.remove('min'); });
+// a chat message into the current channel (TAK server and Meshtastic) – false if nobody can get it
+function sendChat(text, { mesh = true } = {}) {
+  const x = channelInfo(chatConv);
+  const to = chatRecipients(x);
+  if (to && !to.length) { toast(`Nobody of team ${x.name} is online right now.`); return false; }
+  const xml = chatXml(text, x);
+  handleCot(xml, { local: true });
+  sendCot(xml, true);
+  if (mesh) document.dispatchEvent(new CustomEvent('eud-chat-out', { detail: { text, xml, conv: x } })); // Meshtastic (mesh.js)
+  return true;
+}
 $('chatForm').addEventListener('submit', e => {
   e.preventDefault();
   const text = $('chatIn').value.trim();
   if (!text) return;
-  const x = channelInfo(chatConv);
-  const to = chatRecipients(x);
-  if (to && !to.length) return toast(`Nobody of team ${x.name} is online right now.`);
-  const xml = chatXml(text, x);
-  handleCot(xml, { local: true });
-  sendCot(xml, true);
-  document.dispatchEvent(new CustomEvent('eud-chat-out', { detail: { text, xml, conv: x } })); // Meshtastic (mesh.js)
-  $('chatIn').value = '';
+  if (sendChat(text)) $('chatIn').value = '';
 });
 $('chatConv').addEventListener('change', e => setChatConv(e.target.value));
 $('chatConv').addEventListener('click', e => e.stopPropagation());
@@ -2864,7 +2879,7 @@ function videoItems() {
     .filter(v => v.url && !v.stale).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-window.eud = { videoItems, browserVideoUrl, $, store, profile, toast, setMsg, openPopup, closePopup, rnd, esc, map, handleCot, removeItem, askTrust, postJson, getServers: () => servers, saveServers, applyProfilePrefs, addTakMaps, forwardCot: xml => sendCot(xml, false), fmtDist, distance, bearing, askCompass, askDrone, destPoint, serverOnline,
+window.eud = { sendChat, videoItems, browserVideoUrl, $, store, profile, toast, setMsg, openPopup, closePopup, rnd, esc, map, handleCot, removeItem, askTrust, postJson, getServers: () => servers, saveServers, applyProfilePrefs, addTakMaps, forwardCot: xml => sendCot(xml, false), fmtDist, distance, bearing, askCompass, askDrone, destPoint, serverOnline,
   sendCot, cotTime, saveProfile, closeSheets, setTool, setPitch, items, stopMeasure: () => { if (measuring) toggleMeasure(); }, getMe: () => me, battery: () => battery };
 
 loadPicture();

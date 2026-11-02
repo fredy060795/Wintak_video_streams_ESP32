@@ -427,6 +427,13 @@ Audio: G.711 µ-law at 8 kHz (radio quality, ~64 kbit/s while talking, nothing w
 (`/ws/voice`). Only TAKweb devices connected to a TAK server through TAKweb and admin/HQ sessions can join. The phone must
 stay in front with the screen on (the browser stops the microphone in the background).
 
+### Voice messages in the chat
+
+🎤 next to the chat input: tap to record (max. 30 s), ➤ sends, ✕ discards. The recording goes to the TAKweb server
+(kept 3 days like the chat) and a normal chat message with the link goes out – TAKweb shows a player right in the chat,
+ATAK/WinTAK users open the link. Needs the connection to the TAK server (internet); over Meshtastic only the message with
+the link arrives so far (voice over LoRa would need the Codec 2 codec).
+
 ## HQ (operations room)
 
 Admin → **HQ** (or `/hq/` on the admin address, admin login) opens the HQ pages – one per monitor: **⧉** opens the

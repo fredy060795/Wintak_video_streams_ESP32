@@ -823,6 +823,22 @@ test('voice: only TAKweb devices with a TAK connection or the admin/HQ; audio go
   a.close(); b.close();
 });
 
+test('voice messages: upload only with a login, link plays for everybody (also ATAK), only WAV', async () => {
+  const wav = n => { const b = Buffer.alloc(44 + n * 2); b.write('RIFF', 0); b.writeUInt32LE(36 + n * 2, 4); b.write('WAVEfmt ', 8); b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22); b.writeUInt32LE(8000, 24); b.writeUInt32LE(16000, 28); b.writeUInt16LE(2, 32); b.writeUInt16LE(16, 34); b.write('data', 36); b.writeUInt32LE(n * 2, 40); return b; };
+  const post = (body, headers = {}) => fetch(base + '/api/eud/voicemsg', { method: 'POST', headers: { 'Content-Type': 'audio/wav', ...headers }, body });
+  assert.equal((await post(wav(800))).status, 403, 'nobody without a TAK connection / login');
+  assert.equal((await post(Buffer.from('not audio at all, really not'), { cookie })).status, 400);
+  const r = await post(wav(8000), { cookie });
+  assert.equal(r.status, 200);
+  const { url } = await r.json();
+  assert.match(url, /\/voicemsg\/[a-f0-9]{32}\.wav$/);
+  const g = await fetch(base + new URL(url).pathname);
+  assert.equal(g.status, 200);
+  assert.equal(g.headers.get('content-type'), 'audio/wav');
+  assert.equal((await g.arrayBuffer()).byteLength, 44 + 16000);
+  assert.equal((await fetch(base + '/voicemsg/' + '0'.repeat(32) + '.wav')).status, 404);
+});
+
 test('helpers: may approve and create users, but not change settings', async () => {
   const { createMockOts } = require('./ots-mock');
   const mock = createMockOts();

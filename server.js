@@ -174,6 +174,17 @@ function json(res, status, obj, extra) {
   send(res, status, JSON.stringify(obj), 'application/json; charset=utf-8', extra);
 }
 
+// raw request body (Buffer) up to limit
+function readRaw(req, limit) {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    const chunks = [];
+    req.on('data', c => { size += c.length; if (size > limit) { reject(new Error('Request too large.')); req.destroy(); } else chunks.push(c); });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+
 function readJson(req, limit = 64 * 1024) {
   return new Promise((resolve, reject) => {
     let size = 0;
@@ -1124,6 +1135,17 @@ async function handleEudApi(req, res, route) {
     req.on('close', () => { clearInterval(ping); close(); });
     return;
   }
+  // voice message for the chat (voice.js): WAV 8 kHz, stored 3 days like the chat; the link goes into the GeoChat
+  if (route === 'voicemsg' && req.method === 'POST') {
+    if (!voiceWho(req)) return json(res, 403, { error: 'Voice messages need the connection to a TAK server through TAKweb.' });
+    let data;
+    try { data = await readRaw(req, VOICEMSG_MAX); } catch (e) { return json(res, 413, { error: 'Voice message too long.' }); }
+    if (data.length < 44 || data.toString('latin1', 0, 4) !== 'RIFF' || data.toString('latin1', 8, 12) !== 'WAVE') return json(res, 400, { error: 'Not a WAV recording.' });
+    const id = crypto.randomBytes(16).toString('hex');
+    fs.mkdirSync(VOICEMSG_DIR, { recursive: true });
+    fs.writeFileSync(path.join(VOICEMSG_DIR, id + '.wav'), data);
+    return json(res, 200, { id, url: publicBase(req) + '/voicemsg/' + id + '.wav' });
+  }
   // video feeds (HLS) through our own server so the browser may play them
   if (route === 'media' && req.method === 'GET') {
     return proxyMedia(req, res, { allowed: host => tak.targetAllowed(takSettings().allowedHosts, host), log, mapUpstream: otsMedia(req) });
@@ -1655,6 +1677,13 @@ async function handle(req, res) {
       if (!admin) return send(res, 404, 'Not found');
       return serveStatic(res, 'admin', decodeURIComponent(p.slice(7)));
     }
+    const vm = /^\/voicemsg\/([a-f0-9]{32})\.wav$/.exec(p);
+    if (vm && req.method === 'GET') {
+      const f = path.join(VOICEMSG_DIR, vm[1] + '.wav');
+      if (!fs.existsSync(f)) return send(res, 404, 'Voice message not found (kept 3 days).');
+      res.writeHead(200, { 'Content-Type': 'audio/wav', 'Content-Length': fs.statSync(f).size, 'Cache-Control': 'private, max-age=86400' });
+      return fs.createReadStream(f).pipe(res);
+    }
     if (p === '/hq') return send(res, 302, '', 'text/plain', { Location: '/hq/' });
     if (p.startsWith('/hq/')) {
       if (!admin) return send(res, 404, 'Not found');
@@ -1699,6 +1728,12 @@ const takWss = new WebSocketServer({ noServer: true, maxPayload: 1024 * 1024 });
 // push-to-talk voice: TAKweb devices connected to a TAK server right now (same address) and the admin/HQ
 const voiceWss = new WebSocketServer({ noServer: true, maxPayload: 16 * 1024 });
 const voice = new Voice({ log });
+// voice messages of the chat: kept 3 days like the chat itself
+const VOICEMSG_DIR = path.join(config.dataDir, 'voicemsg');
+const VOICEMSG_MAX = 1024 * 1024; // ~60 s at 8 kHz 16 bit
+setInterval(() => {
+  try { for (const f of fs.readdirSync(VOICEMSG_DIR)) { const fp = path.join(VOICEMSG_DIR, f); if (Date.now() - fs.statSync(fp).mtimeMs > 3 * 86400000) fs.rmSync(fp, { force: true }); } } catch (e) { /* no folder yet */ }
+}, 3600000).unref();
 function voiceWho(req) {
   const ses = auth.check(cookies(req).sid);
   if (ses) return { hq: true, callsign: '' };
