@@ -217,3 +217,8 @@ table.kv td { padding: 4px 0; word-break: break-all; }
 .leaflet-tooltip.tr-label { background: rgba(0, 0, 0, .7); color: #fff; border: 0; box-shadow: none; padding: 1px 5px; font-size: 12px; }
 .leaflet-tooltip.tr-label::before { display: none; }
 @media (max-width: 760px) { .tr-wrap { grid-template-columns: 1fr; } .tr-map { height: 50vh; } .tr-side { max-height: none; } }
+.tr-form { border: 1px solid var(--bd); border-radius: 6px; padding: 4px 12px 10px; margin: 8px 0; }
+.tr-pick { max-height: 220px; overflow-y: auto; border: 1px solid var(--bd); border-radius: 6px; padding: 6px 8px; margin-top: 6px; display: grid; gap: 2px; }
+.tr-plan { color: #d29922; font-weight: 600; font-size: 12px; }
+.tr-sym { background: none; border: 0; }
+.tr-sym svg { display: block; }

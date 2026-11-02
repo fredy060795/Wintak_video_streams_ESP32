@@ -637,6 +637,7 @@ function handleCot(xml, { local = false, own = false, srv = null } = {}) {
   const c = parseCot(xml);
   if (!c || !c.uid) return;
   if (c.type.startsWith('t-x-c-t')) return; // Ping/Pong
+  if (c.uid.startsWith('TAKWEB-')) return; // TAKweb's server connections announce themselves to the TAK server
   if (c.type === 't-x-d-d') {
     // the TAK server sends this too when a device loses its connection (OpenTAKServer: send_disconnect_cot).
     // Like ATAK, a user is then only greyed out at the last position – removed by the sweep after 60 min.

@@ -415,15 +415,26 @@ old one; "Withdraw request" ends it. ATAK/iTAK/WinTAK are not affected.
 
 ## Mission tracks (record & replay)
 
-Admin → **Mission tracks & replay**: enter a mission name and **Start recording**. Until you stop, TAKweb listens to the own
-TAK server (OpenTAKServer from the settings) as a silent client with its own certificate and keeps the position of **every**
-user – ATAK, iTAK, WinTAK, TAKweb and Meshtastic users passed on by a gateway – at most one point every 5 s per user
-(one a minute when standing still). A recording goes on after a server restart.
+Admin → **Mission tracks & replay**:
 
-The list shows every mission with start, end, duration, users and points. **Replay** opens a map with every user's track:
-time slider, play at 1× to 1200×, the position of each user at that moment (interpolated), the track so far or the whole
-track, per user team/role, first/last position and distance. **GPX** and **KML** download the tracks (KML with time
-stamps – Google Earth replays it with its time slider). Tracks are stored in `DATA_DIR/tracks/` until the mission is deleted.
+- **Mission:** a new name, or choose a mission that exists in OTS (Data Sync) from the list.
+- **Start** now or at a set date and time, **end** by hand or at a set time – planned missions start and stop by themselves
+  (also after a server restart; a window the server missed completely is marked as missed). A planned mission can be
+  started right away, the planned end changed or the mission cancelled. Only one recording runs at a time.
+- **Record:** every user online, chosen OTS groups, or chosen users (search by callsign, user name or UID in the devices
+  OTS knows).
+- **Map objects:** markers, icons, spots, drawings, routes and range & bearing lines with every change and deletion
+  (with chosen users/groups: what they placed).
+
+TAKweb connects to the own TAK server with its own OTS user `takweb_recorder` (created automatically, reads every group,
+own client certificate) and announces itself once per connection – OpenTAKServer only delivers data to a client after
+that. Positions: at most one point every 5 s per user (one a minute when standing still).
+
+The list shows every mission with status (planned / recording / done), start, end, who is recorded, users, points and map
+objects. **Replay** opens a map with every user's track and the map objects as they were at that moment: time slider, play
+at 1× to 1200×, the position of each user (interpolated), the track so far or the whole track, per user team/role,
+first/last position and distance. **GPX** and **KML** download the tracks (KML with time stamps – Google Earth replays it
+with its time slider). Stored in `DATA_DIR/tracks/` until the mission is deleted.
 
 ## Federation (TAK servers exchange data)
 
