@@ -357,7 +357,17 @@
     try { localStorage.setItem(BITS_KEY, JSON.stringify(all)); } catch (e) { /* full: the message stays without sound */ }
   }
   const meshConv = conv => conv && (conv.key === 'all' || conv.key.startsWith('dm:')); // like text: no team/group rooms over LoRa
-  const meshOn = () => !!(window.eudMesh && window.eudMesh.canSend());
+  // online: LoRa copy only as the Meshtastic send setting says; offline: whenever a radio is connected
+  const meshOn = online => !!(window.eudMesh && (online ? window.eudMesh.canSend() : window.eudMesh.connected()));
+  // the radio is (re)connecting right now: wait a few seconds for it
+  async function meshReady(ms = 6000) {
+    for (let t = 0; t < ms; t += 500) {
+      if (meshOn(false)) return true;
+      if (!window.eudMesh || !/connecting|reconnect/.test(window.eudMesh.state())) return false;
+      await new Promise(r => setTimeout(r, 500));
+    }
+    return meshOn(false);
+  }
 
   function recUi(on) {
     $('chatMic').classList.toggle('rec', on);
@@ -367,8 +377,13 @@
     $('chatMic').title = on ? 'Send the voice message' : 'Voice message (tap to record, tap again to send)';
   }
   async function recStart() {
-    const online = E.serverOnline(), mesh = meshOn();
-    if (!online && !mesh) return E.toast('Voice messages need the TAK server (internet) or a connected Meshtastic radio.', 5000);
+    const online = E.serverOnline();
+    const mesh = online ? meshOn(true) : await meshReady();
+    if (!online && !mesh) {
+      const st = window.eudMesh ? window.eudMesh.state() : 'off';
+      const why = { tap: 'tap RECONNECT in Menu → Meshtastic', lost: 'connection lost – reconnect it in Menu → Meshtastic', paused: 'paused while a video streams' }[st] || 'connect it in Menu → Meshtastic';
+      return E.toast(`No connection to the TAK server, and the Meshtastic radio is not connected (${why}) – a voice message then goes over LoRa.`, 7000);
+    }
     const max = online ? MSG_MS : MESH_MS;
     rec = new VoiceRecorder();
     rec.onLimit = () => recSend();
@@ -381,7 +396,7 @@
     recUi(false);
     const { pcm, ms } = r.stop();
     if (ms < 700) return E.toast('Too short – tap the microphone, speak, tap send.');
-    const online = E.serverOnline(), mesh = meshOn();
+    const online = E.serverOnline(), mesh = meshOn(online);
     try {
       let sent = null;
       if (online) {

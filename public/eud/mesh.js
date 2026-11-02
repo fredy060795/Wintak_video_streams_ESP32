@@ -611,6 +611,9 @@
   }
   window.eudMesh = {
     canSend: () => shouldSend(),
+    // without the TAK server a voice message is sent by hand: the radio only has to be connected (send setting aside)
+    connected: () => state === 'connected',
+    state: () => state,
     // to: '' = all, otherwise the UID of the recipient; id = the GeoChat messageId (16 hex)
     sendVoice({ id, to = '', bits, ms }) {
       const packets = P.voicePackets({ id, from: profile.uid, callsign: profile.callsign || profile.uid, to, ms, bits });
