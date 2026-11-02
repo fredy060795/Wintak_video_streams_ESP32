@@ -257,20 +257,67 @@
     $('vcPtt').classList.toggle('rx', !!m.talker && !me);
     $('vcTalker').textContent = me ? 'You are talking …' : m.talker ? `🔊 ${m.talker}` : 'Channel free';
   }
+  // on the radio net from the start (you hear the others even with the panel closed); ⏻ leaves it until switched on again
+  const OFF_KEY = 'eud.voiceOff';
+  const isOff = () => { try { return localStorage.getItem(OFF_KEY) === '1'; } catch (e) { return false; } };
+  function ensure() {
+    if (v) return v;
+    v = new TakVoice({
+      callsign: E.profile.callsign || E.profile.uid, uid: E.profile.uid,
+      onState: setState, onRoster: roster,
+      onFloor: m => { floor(m); if (m.talker && !m.me && $('voiceWin').classList.contains('hidden')) E.toast('🔊 ' + m.talker + ' (VoIP)', 3000); },
+      onBusy: t => E.toast(`${t} is talking – wait until the channel is free.`),
+      onError: msg => E.toast(msg, 6000),
+    });
+    v.connect();
+    return v;
+  }
   function open() {
     $('voiceWin').classList.remove('hidden');
-    if (!v) {
-      v = new TakVoice({
-        callsign: E.profile.callsign || E.profile.uid, uid: E.profile.uid,
-        onState: setState, onRoster: roster, onFloor: floor,
-        onBusy: t => E.toast(`${t} is talking – wait until the channel is free.`),
-        onError: msg => E.toast(msg, 6000),
-      });
-      v.connect();
-    }
+    try { localStorage.removeItem(OFF_KEY); } catch (e) { /* private mode */ }
+    ensure();
   }
   function close() { $('voiceWin').classList.add('hidden'); }
-  function off() { if (v) v.close(); v = null; setState('off', 'off'); close(); }
+  function off() {
+    if (v) v.close();
+    v = null;
+    try { localStorage.setItem(OFF_KEY, '1'); } catch (e) { /* private mode */ }
+    setState('off', 'off');
+    close();
+  }
+  setInterval(() => { if (!v && !isOff() && E.serverOnline()) ensure(); }, 3000);
+
+  // ---------------- permissions at the start: microphone (bar in the header, eud.js) and sound ----------------
+  // browsers play sound only after a tap: the first tap anywhere unlocks it, so incoming VoIP is heard right away
+  let micState = 'unknown', micAsked = false;
+  const unlock = () => { if (!isOff()) ensure().audioCtx(); };
+  document.addEventListener('pointerdown', unlock, { once: true, capture: true });
+  (async () => {
+    try {
+      const p = await navigator.permissions.query({ name: 'microphone' });
+      micState = p.state;
+      p.onchange = () => { micState = p.state; E.updatePermBar(); };
+    } catch (e) { /* no permissions API: asked once with ALLOW */ }
+    E.updatePermBar();
+  })();
+  // called from the ALLOW tap in the header bar (within the tap, as browsers require)
+  async function allow() {
+    micAsked = true;
+    unlock();
+    try {
+      const st = await navigator.mediaDevices.getUserMedia({ audio: true });
+      st.getTracks().forEach(t => t.stop());
+      micState = 'granted';
+    } catch (e) { micState = 'denied'; }
+    E.updatePermBar();
+    return micState === 'granted';
+  }
+  window.eudVoice = {
+    allow,
+    // the bar asks for the microphone until it is allowed (without the permissions API: once per start)
+    needMic: () => micState === 'denied' || (micState !== 'granted' && !micAsked),
+    micDenied: () => micState === 'denied',
+  };
 
   const tile = document.querySelector('.tile[data-tb="voice"]');
   if (tile) tile.addEventListener('click', () => { E.closeSheets(); if ($('voiceWin').classList.contains('hidden')) open(); else close(); });
@@ -290,10 +337,28 @@
   $('vcVol').addEventListener('input', () => { if (v) v.volume = Number($('vcVol').value); });
 
   // ---------------- voice messages in the chat ----------------
-  const MSG_MS = 30000;
+  // with internet: the recording goes to the TAKweb server, the chat message carries the link (ATAK opens it too).
+  // With Meshtastic sending: additionally as Codec 2 (1300 bit/s) over LoRa (mesh.js) – the same message id, so who gets
+  // both sees it once. Without internet only over LoRa, max. 15 s (airtime).
+  const MSG_MS = 30000, MESH_MS = 15000, MODE = 1300;
   const MIC_SVG = $('chatMic').innerHTML;
+  const P = window.meshProto;
   let rec = null;
   const fmtMs = ms => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
+  // Codec 2 bits of messages from/over the mesh, kept with the chat (3 days)
+  const BITS_KEY = 'eud.voiceBits';
+  const b64 = u => { let s = ''; for (const x of u) s += String.fromCharCode(x); return btoa(s); };
+  const unb64 = t => Uint8Array.from(atob(t), c => c.charCodeAt(0));
+  const loadBits = () => { try { return JSON.parse(localStorage.getItem(BITS_KEY) || '{}'); } catch (e) { return {}; } };
+  function keepBits(uid, bits, mode, ms) {
+    const all = loadBits();
+    all[uid] = { b: b64(bits), mode, ms, t: Date.now() };
+    for (const [k, v] of Object.entries(all)) if (Date.now() - v.t > 3 * 86400000) delete all[k];
+    try { localStorage.setItem(BITS_KEY, JSON.stringify(all)); } catch (e) { /* full: the message stays without sound */ }
+  }
+  const meshConv = conv => conv && (conv.key === 'all' || conv.key.startsWith('dm:')); // like text: no team/group rooms over LoRa
+  const meshOn = () => !!(window.eudMesh && window.eudMesh.canSend());
+
   function recUi(on) {
     $('chatMic').classList.toggle('rec', on);
     $('recBar').classList.toggle('hidden', !on);
@@ -302,10 +367,12 @@
     $('chatMic').title = on ? 'Send the voice message' : 'Voice message (tap to record, tap again to send)';
   }
   async function recStart() {
-    if (!E.serverOnline()) return E.toast('Voice messages need the connection to the TAK server (internet).', 5000);
+    const online = E.serverOnline(), mesh = meshOn();
+    if (!online && !mesh) return E.toast('Voice messages need the TAK server (internet) or a connected Meshtastic radio.', 5000);
+    const max = online ? MSG_MS : MESH_MS;
     rec = new VoiceRecorder();
     rec.onLimit = () => recSend();
-    try { await rec.start(MSG_MS, ms => { $('recTime').textContent = `${fmtMs(ms)} / ${fmtMs(MSG_MS)}`; }); } catch (e) { rec = null; return E.toast('Microphone not allowed – allow it in the browser/app settings.', 6000); }
+    try { await rec.start(max, ms => { $('recTime').textContent = `${fmtMs(ms)} / ${fmtMs(max)}${online ? '' : ' (mesh)'}`; }); } catch (e) { rec = null; return E.toast('Microphone not allowed – allow it in the browser/app settings.', 6000); }
     recUi(true);
   }
   async function recSend() {
@@ -314,13 +381,57 @@
     recUi(false);
     const { pcm, ms } = r.stop();
     if (ms < 700) return E.toast('Too short – tap the microphone, speak, tap send.');
+    const online = E.serverOnline(), mesh = meshOn();
     try {
-      const res = await fetch('/api/eud/voicemsg', { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: wav(pcm) });
-      const d = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(d.error || 'Upload failed (' + res.status + ')');
-      E.sendChat(`🎤 Voice message ${fmtMs(ms)} ${d.url}`);
+      let sent = null;
+      if (online) {
+        const res = await fetch('/api/eud/voicemsg', { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: wav(pcm) });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(d.error || 'Upload failed (' + res.status + ')');
+        sent = E.sendChat(`🎤 Voice message ${fmtMs(ms)} ${d.url}`, { mesh: false });
+      } else {
+        sent = E.sendChat(`🎤 Voice message ${fmtMs(ms)} (mesh)`, { mesh: false, server: false });
+      }
+      if (!sent || !mesh || !window.Codec2) return;
+      if (!meshConv(sent.conv)) { if (!online) E.toast('Team and group chats do not go over LoRa – use All or a direct message.', 5000); return; }
+      const part = pcm.subarray(0, Math.min(pcm.length, MESH_MS * 8)); // LoRa: at most 15 s
+      const bits = await window.Codec2.encode(part, MODE);
+      keepBits(sent.uid, bits, MODE, Math.min(ms, MESH_MS));
+      E.toast(`Voice message over LoRa: ${Math.ceil(bits.length / P.VOICE_CHUNK) + 1} packets (~${Math.round((Math.ceil(bits.length / P.VOICE_CHUNK) + 1) * 1.6)} s)`, 4000);
+      window.eudMesh.sendVoice({ id: sent.msgId, to: sent.conv.key.startsWith('dm:') ? (sent.conv.uid || sent.conv.key.slice(3)) : '', bits, ms: Math.min(ms, MESH_MS) });
     } catch (e) { E.toast('Voice message not sent: ' + e.message, 6000); }
   }
   $('chatMic').addEventListener('click', () => (rec ? recSend() : recStart()));
   $('recCancel').addEventListener('click', () => { if (rec) { rec.stop(); rec = null; } recUi(false); });
+
+  // a voice message that came over LoRa (mesh.js): into the chat like a GeoChat, with the sound kept here
+  document.addEventListener('eud-voice-in', e => {
+    const m = e.detail;
+    const xml = P.chatCot({ senderUid: m.from, senderCallsign: m.callsign, msgId: m.id, text: `🎤 Voice message ${fmtMs(m.ms)} (mesh)`, toUid: m.to });
+    const uid = (/uid="([^"]+)"/.exec(xml) || [])[1];
+    keepBits(uid, m.bits, m.mode, m.ms);
+    E.handleCot(xml);
+  });
+  // player in the chat (eud.js renderChat): decodes on the first tap
+  window.eudVoicePlayer = id => {
+    const v = loadBits()[id];
+    if (!v) return null;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'cm-play';
+    btn.textContent = `▶ ${fmtMs(v.ms)}  (LoRa)`;
+    btn.addEventListener('click', async () => {
+      try {
+        btn.disabled = true;
+        const pcm = await window.Codec2.decode(unb64(v.b), v.mode);
+        const a = document.createElement('audio');
+        a.controls = true;
+        a.className = 'cm-audio';
+        a.src = URL.createObjectURL(wav(pcm));
+        btn.replaceWith(a);
+        a.play().catch(() => {});
+      } catch (err) { btn.disabled = false; E.toast('Cannot play: ' + err.message); }
+    });
+    return btn;
+  };
 })();

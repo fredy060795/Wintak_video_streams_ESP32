@@ -6,10 +6,10 @@ const TILE_CACHE = 'eud-tiles';
 const MAX_TILES = 40000; // saved areas + recently viewed tiles
 const VERSION = '__TAKWEB_VERSION__';
 // own files are loaded as file?v=<version> (index.html): page and files always belong to the same version
-const OWN = ['eud.css', 'eud.js', 'view3d.js', 'video.js', 'data.js', 'meshproto.js', 'blenative.js', 'mesh.js', 'tools.js', 'voice.js'].map(f => `${f}?v=${VERSION}`);
+const OWN = ['eud.css', 'eud.js', 'view3d.js', 'video.js', 'data.js', 'meshproto.js', 'blenative.js', 'mesh.js', 'tools.js', 'voice.js', 'codec2.js'].map(f => `${f}?v=${VERSION}`);
 const SHELL = [
   './', 'index.html', ...OWN, 'manifest.webmanifest',
-  'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'tak-badge.png',
+  'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'tak-badge.png', 'codec2.wasm',
   'vendor/leaflet.js', 'vendor/leaflet-rotate.js', 'vendor/leaflet.css', 'vendor/milsymbol.js', 'vendor/jsQR.js', 'vendor/hls.min.js',
   'vendor/maplibre-gl.mjs', 'vendor/maplibre-gl-worker.mjs', 'vendor/maplibre-gl.css',
   'vendor/images/layers.png', 'vendor/images/layers-2x.png',

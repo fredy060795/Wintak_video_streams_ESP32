@@ -9,7 +9,7 @@
   if (typeof module === 'object' && module.exports) module.exports = m;
   else root.meshProto = m;
 })(this, () => {
-  const PORT = { TEXT: 1, POSITION: 3, NODEINFO: 4, ATAK: 72, FORWARDER: 257 };
+  const PORT = { TEXT: 1, POSITION: 3, NODEINFO: 4, ATAK: 72, PRIVATE: 256, FORWARDER: 257 };
   const BROADCAST = 0xffffffff;
   const ALL_CHAT = 'All Chat Rooms';
   // TAKPacket Team / MemberRole enums: index = enum value (0 = unspecified)
@@ -384,7 +384,77 @@
   // blocks to send for K source blocks (50 % / 25 % / 15 % extra like the plugin)
   const fountainBlockCount = K => Math.ceil(K * (1 + (K <= 10 ? 0.5 : K <= 50 ? 0.25 : 0.15)));
 
+  // ---------------- Voice messages (TAKweb, port PRIVATE_APP 256) ----------------
+  // Codec 2 speech in small packets: every packet starts with 'V', version, kind (0 data, 1 request), message id
+  // (8 bytes = the GeoChat messageId, so the same message from the TAK server is not shown twice), index, count.
+  // Packet 0 carries the details (mode, length, sender, callsign, recipient), the others the speech.
+  // A receiver that misses packets asks for them (kind 1 with the missing indices).
+  const VOICE_MAGIC = 0x56, VOICE_VER = 1, VOICE_CHUNK = 200, VOICE_HEAD = 13;
+  const VOICE_MODES = [1300, 1200, 700, 1600, 2400, 3200];
+  const hexBytes = h => Uint8Array.from((String(h).padEnd(16, '0').slice(0, 16).match(/../g) || []).map(x => parseInt(x, 16) || 0));
+  const bytesHex = b => Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
+  function voiceHead(kind, id, idx, count) {
+    const h = new Uint8Array(VOICE_HEAD);
+    h[0] = VOICE_MAGIC; h[1] = VOICE_VER; h[2] = kind; h.set(hexBytes(id), 3); h[11] = idx; h[12] = count;
+    return h;
+  }
+  function voicePackets({ id, from, callsign, to = '', mode = 1300, ms, bits }) {
+    const str = s => { const b = utf8.encode(String(s || '')).slice(0, 255); return [b.length, ...b]; };
+    const meta = Uint8Array.from([Math.max(0, VOICE_MODES.indexOf(mode)), (Math.round(ms / 100) >> 8) & 255, Math.round(ms / 100) & 255, ...str(from), ...str(callsign), ...str(to)]);
+    const parts = [meta];
+    for (let i = 0; i < bits.length; i += VOICE_CHUNK) parts.push(bits.subarray(i, i + VOICE_CHUNK));
+    if (parts.length > 255) throw new Error('voice message too long');
+    return parts.map((p, i) => { const out = new Uint8Array(VOICE_HEAD + p.length); out.set(voiceHead(0, id, i, parts.length)); out.set(p, VOICE_HEAD); return out; });
+  }
+  function voiceRequest(id, missing) {
+    const out = new Uint8Array(VOICE_HEAD + missing.length);
+    out.set(voiceHead(1, id, 0, 0));
+    out.set(missing.slice(0, 200), VOICE_HEAD);
+    return out;
+  }
+  function parseVoice(buf) {
+    if (!buf || buf.length < VOICE_HEAD || buf[0] !== VOICE_MAGIC || buf[1] !== VOICE_VER) return null;
+    return { kind: buf[2], id: bytesHex(buf.subarray(3, 11)), idx: buf[11], count: buf[12], data: buf.subarray(VOICE_HEAD) };
+  }
+  // collects the packets of voice messages; add() returns the message once it is complete
+  class VoiceAssembler {
+    constructor() { this.m = new Map(); }
+    add(p, now = Date.now()) {
+      if (!p || p.kind !== 0 || !p.count) return null;
+      let e = this.m.get(p.id);
+      if (!e) { e = { parts: new Array(p.count), got: 0, at: now, done: false, asked: 0 }; this.m.set(p.id, e); }
+      e.at = now;
+      if (e.done || p.idx >= p.count || e.parts[p.idx]) return null;
+      e.parts[p.idx] = Uint8Array.from(p.data);
+      if (++e.got < p.count) return null;
+      e.done = true;
+      const meta = e.parts[0];
+      let o = 3;
+      const str = () => { const n = meta[o]; const s = utf8d.decode(meta.subarray(o + 1, o + 1 + n)); o += 1 + n; return s; };
+      const from = str(), callsign = str(), to = str();
+      const len = e.parts.slice(1).reduce((n, x) => n + x.length, 0);
+      const bits = new Uint8Array(len);
+      let k = 0;
+      for (const x of e.parts.slice(1)) { bits.set(x, k); k += x.length; }
+      return { id: p.id, mode: VOICE_MODES[meta[0]] || 1300, ms: ((meta[1] << 8) | meta[2]) * 100, from, callsign, to, bits };
+    }
+    // incomplete messages without news for waitMs: [{ id, missing: [idx…] }] (to ask the sender again)
+    stale(now = Date.now(), waitMs = 15000) {
+      const out = [];
+      for (const [id, e] of this.m) {
+        if (now - e.at > 10 * 60000) { this.m.delete(id); continue; }
+        if (e.done || now - e.at < waitMs || e.asked >= 3) continue;
+        e.asked++; e.at = now;
+        const missing = [];
+        for (let i = 0; i < e.parts.length; i++) if (!e.parts[i]) missing.push(i);
+        out.push({ id, missing });
+      }
+      return out;
+    }
+  }
+
   return {
+    voicePackets, voiceRequest, parseVoice, VoiceAssembler, VOICE_CHUNK,
     PORT, BROADCAST, ALL_CHAT, TEAMS, ROLES, FOUNTAIN, Writer, decode,
     wantConfig, toRadioPacket, takPli, takChat, parseTak, parseFromRadio, parseUserPayload, parsePositionPayload,
     pliCot, chatCot, nodeCot, nodeTeam, nodeId, utf8,

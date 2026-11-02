@@ -840,6 +840,9 @@ function renderChat() {
       a.className = 'cm-audio';
       txt.textContent = m.text.replace(vm[1], '').trim();
       d.append(a);
+    } else if (window.eudVoicePlayer) {
+      const pl = window.eudVoicePlayer(m.id); // voice message that came over the mesh (Codec 2, voice.js)
+      if (pl) d.append(pl);
     }
     log.append(d);
   }
@@ -904,16 +907,17 @@ $('btnChat').addEventListener('click', () => ($('chatWin').classList.contains('h
 $('chatClose').addEventListener('click', closeChat);
 $('chatMin').addEventListener('click', e => { e.stopPropagation(); $('chatWin').classList.toggle('min'); chatToEnd(); });
 document.querySelector('.chat-head').addEventListener('click', e => { if (e.target.closest('button')) return; $('chatWin').classList.remove('min'); });
-// a chat message into the current channel (TAK server and Meshtastic) – false if nobody can get it
-function sendChat(text, { mesh = true } = {}) {
+// a chat message into the current channel (TAK server and Meshtastic) – { xml, uid, msgId, conv }, or null if nobody
+// can get it. server: false = only here and over the mesh (e.g. a voice message without internet)
+function sendChat(text, { mesh = true, server = true } = {}) {
   const x = channelInfo(chatConv);
   const to = chatRecipients(x);
-  if (to && !to.length) { toast(`Nobody of team ${x.name} is online right now.`); return false; }
+  if (to && !to.length) { toast(`Nobody of team ${x.name} is online right now.`); return null; }
   const xml = chatXml(text, x);
   handleCot(xml, { local: true });
-  sendCot(xml, true);
+  if (server) sendCot(xml, true);
   if (mesh) document.dispatchEvent(new CustomEvent('eud-chat-out', { detail: { text, xml, conv: x } })); // Meshtastic (mesh.js)
-  return true;
+  return { xml, uid: (/uid="([^"]+)"/.exec(xml) || [])[1], msgId: (/messageId="([^"]+)"/.exec(xml) || [])[1], conv: x };
 }
 $('chatForm').addEventListener('submit', e => {
   e.preventDefault();
@@ -2581,16 +2585,18 @@ startHeading(true);
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 let permAsked = false;
 function updatePermBar() {
-  // Android app: Android keeps the app's permissions – no bar after the start, only when location was really refused
-  const need = (!compassAllowed && !nativeApp) || geoDenied;
+  // Android app: Android keeps the app's permissions – no bar after the start, only when something was really refused
+  const voice = window.eudVoice;
+  const mic = !!voice && (nativeApp ? voice.micDenied() : voice.needMic());
+  const need = (!compassAllowed && !nativeApp) || geoDenied || mic;
   $('permBar').classList.toggle('hidden', !need);
   if (!need) return;
   if (nativeApp) {
-    $('permText').textContent = 'Location is not allowed for the TAKweb app – your position is not sent. ALLOW opens the app settings (Permissions → Location → "Allow all the time").';
+    $('permText').textContent = `${[geoDenied && 'Location', mic && 'Microphone (VoIP)'].filter(Boolean).join(' and ')} not allowed for the TAKweb app. ALLOW opens the app settings (Permissions${geoDenied ? ' → Location → "Allow all the time"' : ' → Microphone'}).`;
     return;
   }
-  $('permText').textContent = !compassAllowed && geoDenied ? 'Allow location and compass – otherwise your position and direction are not shown or sent.'
-    : geoDenied ? 'Location is not allowed – your position is not sent.' : 'Allow the compass – for your direction and the view cone of your camera.';
+  const parts = [geoDenied && 'location', !compassAllowed && 'compass', mic && 'microphone'].filter(Boolean);
+  $('permText').textContent = `Allow ${parts.join(', ').replace(/, ([^,]*)$/, ' and $1')} – ` + [geoDenied && 'your position is sent', !compassAllowed && 'your direction is shown', mic && 'VoIP and voice messages work right away'].filter(Boolean).join(', ') + '.';
   if (permAsked && geoDenied) $('permText').textContent += isIOS ? ' Still refused: Settings → Privacy → Location Services → Safari Websites (or Bluefy) → "While Using".'
     : ' Still refused: tap the lock icon next to the address → Permissions → Location.';
 }
@@ -2603,6 +2609,7 @@ $('permGo').addEventListener('click', () => {
     return;
   }
   permAsked = true;
+  if (window.eudVoice) window.eudVoice.allow(); // microphone and sound, within the tap
   askCompass().then(updatePermBar); // must be called within the tap (iPhone)
   if (geoDenied) startGeo();
   setTimeout(updatePermBar, 1500);
@@ -2611,6 +2618,8 @@ $('permClose').addEventListener('click', () => $('permBar').classList.add('hidde
 updatePermBar();
 // app: should the WebView still want the compass allowed, quietly with the first tap (no bar)
 if (nativeApp && !compassAllowed) document.addEventListener('pointerup', () => askCompass(), { once: true, capture: true });
+// app: Android asks for the microphone once (Capacitor) – quietly with the first tap, the bar only if it was refused
+if (nativeApp) document.addEventListener('pointerup', () => { if (window.eudVoice && window.eudVoice.needMic()) window.eudVoice.allow(); }, { once: true, capture: true });
 
 // tapping the compass: a map rotated by hand goes back to north; if already north up, heading up (HDG)
 $('compass').addEventListener('click', () => {
@@ -2879,7 +2888,7 @@ function videoItems() {
     .filter(v => v.url && !v.stale).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-window.eud = { sendChat, videoItems, browserVideoUrl, $, store, profile, toast, setMsg, openPopup, closePopup, rnd, esc, map, handleCot, removeItem, askTrust, postJson, getServers: () => servers, saveServers, applyProfilePrefs, addTakMaps, forwardCot: xml => sendCot(xml, false), fmtDist, distance, bearing, askCompass, askDrone, destPoint, serverOnline,
+window.eud = { sendChat, updatePermBar, videoItems, browserVideoUrl, $, store, profile, toast, setMsg, openPopup, closePopup, rnd, esc, map, handleCot, removeItem, askTrust, postJson, getServers: () => servers, saveServers, applyProfilePrefs, addTakMaps, forwardCot: xml => sendCot(xml, false), fmtDist, distance, bearing, askCompass, askDrone, destPoint, serverOnline,
   sendCot, cotTime, saveProfile, closeSheets, setTool, setPitch, items, stopMeasure: () => { if (measuring) toggleMeasure(); }, getMe: () => me, battery: () => battery };
 
 loadPicture();
