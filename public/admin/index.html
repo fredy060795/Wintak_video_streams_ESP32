@@ -102,6 +102,7 @@
     <a href="#missions" data-nav="missions" class="admin-only"><span class="ic">⟳</span>Missions (Data Sync)</a>
     <a href="#mesh" data-nav="mesh" class="admin-only"><span class="ic">⌁</span>Meshtastic</a>
     <a href="#federation" data-nav="federation" class="admin-only"><span class="ic">⇄</span>Federation</a>
+    <a href="#lpu5" data-nav="lpu5" class="admin-only"><span class="ic">⌬</span>LPU5 field devices</a>
     <div class="side-h admin-only">Video</div>
     <a href="#video" data-nav="video" class="admin-only"><span class="ic">📡</span>Video feeds <span class="badge nb live" id="navLive"></span></a>
     <a href="#create" data-nav="create" class="admin-only"><span class="ic">＋</span>Create stream</a>
@@ -390,6 +391,62 @@
       <p class="msg" id="omeMsg"></p>
       <div class="table-wrap"><table class="streams" id="omeTable"><thead><tr><th>Channel</th><th>Radio</th><th>Up/Down</th><th>Link</th><th></th></tr></thead><tbody></tbody></table></div>
     </section>
+    <section class="card" data-view="lpu5">
+      <div class="row between"><h2>LPU5 field devices</h2><span class="badge off" id="l5Conn">off</span></div>
+      <p class="mut small">Raspberry Pi field devices (<a href="https://github.com/fredy060795/LPU5-Pi-Meshradio-IOT" target="_blank" rel="noopener">LPU5</a>) in their WireGuard VPN. Every device that comes online appears here.
+        Per device you decide what it does: its one Bluetooth link goes to the <b>Meshtastic radio</b> (then it is a fixed mesh ↔ TAK gateway – no phone has to stay awake) or to the <b>helmet camera</b>;
+        the SDR stick serves <b>rtl_tcp</b> (listen from HQ) or <b>ADS-B</b> (aircraft in TAK); hotspot and open Wi-Fi. ⚙ Meshtastic manages the radio remotely.</p>
+      <p class="small" id="l5ConnMsg"></p>
+      <p class="small" id="l5Tak"></p>
+      <p class="small mut" id="l5Gw"></p>
+      <div class="table-wrap"><table class="streams" id="l5Table"><thead><tr><th>Device</th><th>Status</th><th>Bluetooth</th><th>Mesh gateway</th><th>SDR</th><th>Wi-Fi</th><th></th></tr></thead><tbody></tbody></table></div>
+      <p class="msg" id="l5Msg"></p>
+    </section>
+    <section class="card" data-view="lpu5">
+      <h2>Connection &amp; defaults</h2>
+      <form id="l5Settings">
+        <label class="check"><input type="checkbox" name="enabled"> Connect to the LPU5 devices</label>
+        <div class="row">
+          <div class="grow"><label>MQTT broker in the VPN</label><input name="url" placeholder="mqtt://10.55.0.1:1883"></div>
+          <div class="grow"><label>User (lpu5-add-node takweb --operator)</label><input name="username" autocomplete="off"></div>
+          <div class="grow"><label>Password</label><input name="password" type="password" autocomplete="new-password"></div>
+        </div>
+        <h3>New devices</h3>
+        <label class="check"><input type="checkbox" name="autoAdopt"> Give new devices the defaults right away (otherwise they wait for approval)</label>
+        <div class="row">
+          <div class="grow"><label>Bluetooth</label><select name="d_ble"></select></div>
+          <div class="grow"><label>Mesh gateway</label><select name="d_gateway"></select></div>
+          <div class="grow"><label>SDR</label><select name="d_sdr"></select></div>
+          <div class="grow"><label>Hotspot</label><select name="d_hotspot"></select></div>
+        </div>
+        <label class="check"><input type="checkbox" name="d_open_wifi"> Use open Wi-Fi networks for the uplink</label>
+        <h3>Gateway &amp; TAK</h3>
+        <div class="row">
+          <div><label>Meshtastic channel for TAK (index)</label><input name="channel" type="number" min="0" max="7" style="width:90px"></div>
+          <div><label>Team colour of the devices in TAK</label><input name="team" placeholder="Cyan" style="width:140px"></div>
+          <div><label>ADS-B up to … km from the device</label><input name="adsbMaxKm" type="number" min="1" max="1000" style="width:110px"></div>
+        </div>
+        <label class="check"><input type="checkbox" name="adsbToTak"> Aircraft (ADS-B) as contacts in TAK</label>
+        <label class="check"><input type="checkbox" name="nodesToTak"> Plain Meshtastic nodes (without TAK) as contacts in TAK</label>
+        <label class="check"><input type="checkbox" name="textsToLog"> Plain Meshtastic texts into the HQ situation log</label>
+        <div class="row" style="margin-top:10px"><button class="pri" type="submit">Save</button></div>
+        <p class="msg" id="l5SetMsg"></p>
+      </form>
+    </section>
+    <section class="card" data-view="lpu5">
+      <h2>Meshtastic channel on all devices</h2>
+      <p class="mut small">E.g. a new key after a radio got lost: set the same channel on every online LPU5 radio at once. Phones and other radios need the new channel link too.</p>
+      <form id="l5ChForm">
+        <div class="row">
+          <div><label>Index</label><select name="index"><option>0</option><option selected>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option></select></div>
+          <div class="grow"><label>Name (max. 11)</label><input name="name" maxlength="11"></div>
+          <div class="grow"><label>Key (Base64)</label><input name="psk" autocomplete="off"></div>
+          <div class="actions-end"><button type="button" id="l5ChPsk">🔑 Generate</button></div>
+        </div>
+        <div class="row" style="margin-top:10px"><button class="pri" type="submit">Set on all devices</button></div>
+      </form>
+      <pre class="small" id="l5ChOut" style="white-space:pre-wrap"></pre>
+    </section>
     <section class="card" data-view="mapclear">
       <div class="row between"><h2>Clear map <span class="mut small">(on all TAKweb devices – e.g. after a mission)</span></h2><button id="mcReload" type="button">⟳</button></div>
       <p class="mut small">Choose what to remove. Every TAKweb device shows a request when it connects (devices online right now
@@ -584,5 +641,6 @@
 <script src="/eud/vendor/leaflet.js"></script>
 <script src="/eud/vendor/milsymbol.js"></script>
 <script src="tracks.js"></script>
+<script src="lpu5.js"></script>
 </body>
 </html>

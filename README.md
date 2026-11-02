@@ -438,6 +438,44 @@ reads every group):
 
 Planned next: APRS input for external GPS devices and a radio log (USB audio or SDR stick with speech-to-text).
 
+## LPU5 field devices (Raspberry Pi + Meshtastic + SDR)
+
+[LPU5](https://github.com/fredy060795/LPU5-Pi-Meshradio-IOT) devices are potted Raspberry Pi Zero 2 W units with a
+Meshtastic radio, an RTL-SDR stick and GPS. They take any uplink (known or open Wi-Fi, phone tethering) and connect to
+the HQ through WireGuard. TAKweb talks to them over MQTT inside that VPN – **Admin → LPU5 field devices**:
+
+- **Every device that comes online appears in the list.** With "Give new devices the defaults right away" it gets the
+  defaults at once, otherwise it waits for ✓ Approve. Every setting can then be changed per device, and the device applies
+  it within seconds (also after a restart without network – it keeps its last settings).
+- **Bluetooth: Meshtastic radio or helmet camera.** The Pi has one BLE link:
+  - *Meshtastic radio* – the device is a **fixed mesh ↔ TAK gateway**: positions, chat "All", markers, drawings and
+    deletions go from LoRa to the TAK server and back, with the same rules as the gateway in the TAKweb app (no
+    duplicates, no loops, positions over LoRa at most every 5 min). App gateways and LPU5 gateways work side by side –
+    but no phone has to stay awake. "Receive only" devices only listen, "Send + receive" devices also transmit (pick one
+    per area to save airtime).
+  - *Helmet camera* – the ESP32 helmet camera connects to the Pi instead of a phone. TAKweb creates the stream itself
+    (needs the server address under Links & QR codes); it shows up under Video feeds, in OTS and on the HQ video wall.
+  - A radio on USB (`serial:` on the device) does not need BLE – then both work at the same time.
+- **SDR:** *rtl_tcp* (GQRX/SDR++ in the HQ: `rtl_tcp=<VPN address>:1234`, 📻 shows it) or *ADS-B*: aircraft become
+  neutral air contacts (`ICAO-<hex>`) in ATAK/WinTAK/TAKweb, limited to a radius around the device.
+- **Wi-Fi:** hotspot auto / always / off (a hotspot that is off still comes back after 15 min without uplink, so the
+  device stays reachable), open Wi-Fi on/off.
+- **The devices in TAK:** every LPU5 is a contact `LPU5-<name>` (role RTO) at its GPS position (or its radio's), with
+  uplink/VPN/mesh/temperature in the remarks – also on the HQ pages.
+- **⌘ Command:** status, Wi-Fi scan, hotspot, SDR, text into the mesh, update, reboot.
+- **⚙ Meshtastic – remote management of the radio** (like Meshtastic Desktop): owner name, channels (keys AES-128/256,
+  import/export of channel links), every device and module setting (the forms come from the protobuf definitions of the
+  device, so new firmware options appear by themselves; only changed fields are written), node list with traceroute and
+  position request, fixed position, reboot/shutdown/node DB reset/factory reset, backup and restore (JSON, also from
+  Meshtastic Desktop). "Apply changes to" a remote node `!xxxxxxxx` uses Meshtastic remote admin (needs its admin key).
+- **Meshtastic channel on all devices:** e.g. a new key after a radio got lost – on every online LPU5 at once.
+- Plain Meshtastic texts can go into the HQ situation log, plain Meshtastic nodes (without TAK) can appear as contacts.
+
+**Setup:** on the LPU5 HQ server `sudo lpu5-add-node takweb --operator` creates an MQTT login for TAKweb. Enter
+`mqtt://10.55.0.1:1883` with that user under **Connection & defaults** (TAKweb must be in the VPN – e.g. on the same
+server). With OpenTAKServer set up, TAKweb creates its own TAK user `takweb_lpu5` (sends into and reads every group) and
+passes everything to the TAK server; without OTS the data stays on the HQ pages.
+
 ## Mission tracks (record & replay)
 
 Admin → **Mission tracks & replay**:

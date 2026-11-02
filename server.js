@@ -34,6 +34,8 @@ const { KlvFeeds } = require('./lib/klvfeed');
 const { Federation } = require('./lib/federation');
 const { Tracks, stateOf } = require('./lib/tracks');
 const { Hq } = require('./lib/hq');
+const { Lpu5 } = require('./lib/lpu5');
+const { MeshGateway } = require('./lib/meshgw');
 const raster = require('./lib/raster');
 
 const config = {
@@ -1018,6 +1020,157 @@ async function handleHq(req, res, route, method) {
   return json(res, 404, { error: 'Not found' });
 }
 
+// ---------------- LPU5 field devices (lib/lpu5.js) and the mesh <-> TAK gateway through them (lib/meshgw.js) ----------------
+// TAKweb reaches the devices over MQTT in their WireGuard VPN. Everything they bring to TAK (their own position, mesh
+// positions/chat/markers, aircraft) goes to the TAK server over an own connection "takweb_lpu5" that may send into every
+// group – and comes back over it from the TAK server towards LoRa.
+const lpu5Data = () => store.data.lpu5 || (store.data.lpu5 = {});
+let gwLink = null, gwQuietUntil = 0;
+const gwState = { state: 'off', message: '' };
+const gwUid = () => 'TAKWEB-LPU5-' + fedConfig().id;
+function lpu5Cot(xml) {
+  if (gwLink && gwLink.connected) gwLink.send(xml);
+  try { hq.cot(xml); } catch (e) { /* not CoT */ }
+}
+const meshGw = new MeshGateway({
+  send: (name, pkt) => lpu5.tx(name, pkt),
+  // radios that send: online, Meshtastic connected, gateway "send and receive"
+  radios: () => lpu5.gatewayRadios(),
+  cot: lpu5Cot,
+  settings: () => lpu5Data().gateway || { channel: 0 },
+  log,
+});
+// helmet camera on an LPU5: a TAKweb stream of its own, the device publishes to it like the camera app
+function lpu5Bodycam(name) {
+  let entry = Object.values(store.data.streams || {}).find(e => e.lpu5 === name);
+  if (!entry) {
+    entry = hub.create(StreamHub.validUser(name) ? name : 'lpu5', `LPU5 ${name} helmet camera`);
+    entry.lpu5 = name;
+    entry.eud = true; // the device may start by itself
+    store.save();
+    log('LPU5: helmet camera stream created for', name);
+  }
+  const base = configuredBase();
+  if (!base) throw new Error('Set the address of this server first (Links & QR codes) – the device needs it for the camera.');
+  return `${base.replace(/^http/, 'ws')}/ws/publish?u=${encodeURIComponent(entry.user)}&s=${encodeURIComponent(entry.streamId)}&k=${encodeURIComponent(entry.key)}`;
+}
+const lpu5 = new Lpu5({
+  data: lpu5Data, save: () => store.save(), log, cot: lpu5Cot, gateway: meshGw, bodycam: lpu5Bodycam,
+  hqLog: e => { try { hq.addLog(e); } catch (x) { /* empty */ } },
+});
+
+async function gwUser() {
+  const d = lpu5Data(), ots = takUsers.ots();
+  d.tak = d.tak || {};
+  if (!d.tak.user) { d.tak.user = { username: 'takweb_lpu5', password: makePassword() }; store.save(); }
+  const u = d.tak.user;
+  if (!(await ots.userExists(u.username))) { await ots.addUser(u.username, u.password, ['user']); d.tak.certPem = ''; }
+  // sends into and receives from every group: field devices are for everybody
+  const groups = new Set((await ots.allGroups()).map(g => g.name).filter(Boolean));
+  groups.add(ANON);
+  await ots.syncGroups(u.username, [...groups].flatMap(group => [{ group, direction: 'IN' }, { group, direction: 'OUT' }]), '', []);
+  return u;
+}
+async function gwApply() {
+  const want = lpu5.configured() && takUsers.otsConfigured();
+  if (!want) {
+    if (gwLink) { gwLink.stop(); gwLink = null; }
+    Object.assign(gwState, { state: 'off', message: lpu5.configured() ? 'OpenTAKServer is not set up – LPU5 data stays on the HQ pages only.' : '' });
+    return;
+  }
+  if (gwLink) return;
+  const d = lpu5Data(), l = fedLocal();
+  try {
+    const u = await gwUser();
+    if (!d.tak.certPem) {
+      const req = { host: l.altHost || l.host, port: l.enrollPort, username: u.username, password: u.password, uid: gwUid(), caPems: d.tak.caPems || [] };
+      let r;
+      try { r = await tak.enroll(req); } catch (e) {
+        if (e.code === 'UNTRUSTED') { d.tak.fingerprint = e.fingerprint; r = await tak.enroll({ ...req, fingerprint: e.fingerprint }); } else if (/401|403|password|credentials/i.test(e.message)) {
+          await takUsers.ots().resetPassword(u.username, u.password);
+          r = await tak.enroll(req);
+        } else throw e;
+      }
+      Object.assign(d.tak, { certPem: r.certPem, keyPem: r.keyPem, caPems: r.caPems || [] });
+      store.save();
+    }
+  } catch (e) {
+    Object.assign(gwState, { state: 'error', message: 'LPU5 connection to the TAK server not ready – ' + e.message });
+    return;
+  }
+  if (gwLink) return;
+  gwLink = new tak.TakLink({
+    host: l.host, altHost: l.altHost, port: l.port, proto: 'ssl', certPem: d.tak.certPem, keyPem: d.tak.keyPem, caPems: d.tak.caPems, fingerprint: d.tak.fingerprint || '',
+    uid: gwUid(), hello: 'TAKweb LPU5',
+    onStatus: (state, message) => {
+      if (gwState.state !== state) log(`TAK server (LPU5 gateway): ${message || state}`);
+      if (state === 'connected') gwQuietUntil = Date.now() + 15000; // the server sends its stored picture first: not over LoRa
+      Object.assign(gwState, { state, message: message || '' });
+      if (/rejected the client certificate/.test(message || '')) { d.tak.certPem = ''; store.save(); }
+    },
+    onCot: xml => meshGw.fromTak(xml, { replay: Date.now() < gwQuietUntil }),
+  });
+  gwLink.start();
+}
+function lpu5Apply() {
+  lpu5.apply();
+  gwApply().catch(e => log('LPU5 gateway: ' + e.message));
+}
+// OpenTAKServer set up later, or the TAK server was not reachable: try again
+setInterval(() => { if (lpu5.configured() && !gwLink) gwApply().catch(() => {}); }, 60000).unref();
+
+async function handleLpu5(req, res, route, method) {
+  const view = () => ({ ...lpu5.view(), tak: { ...gwState }, otsConfigured: takUsers.otsConfigured(), publicUrl: configuredBase() });
+  if (route === '' && method === 'GET') return json(res, 200, view());
+  const body = method === 'POST' ? await readJson(req, 512 * 1024) : {};
+  try {
+    if (route === 'settings' && method === 'POST') {
+      lpu5.setSettings(body);
+      if (gwLink) { gwLink.stop(); gwLink = null; }
+      lpu5Apply();
+      return json(res, 200, view());
+    }
+    // the same Meshtastic channel (e.g. a new key after a lost device) on every online device
+    if (route === 'channel-all' && method === 'POST') {
+      const names = lpu5.view().nodes.filter(n => n.online && n.adopted && n.status && n.status.mesh).map(n => n.name);
+      const results = [];
+      for (const name of names) {
+        try {
+          const r = await lpu5.request(name, { op: 'mesh.set_channel', args: { index: body.index, name: body.name, psk: body.psk, role: body.role } }, 30000);
+          results.push({ name, ok: !!r.ok, text: r.ok ? String(r.data) : r.error });
+        } catch (e) { results.push({ name, ok: false, text: e.message }); }
+      }
+      log('LPU5: channel', body.index, 'set on', results.filter(r => r.ok).length, 'of', names.length, 'devices');
+      return json(res, 200, { results });
+    }
+    const m = /^nodes\/([a-z0-9][a-z0-9-]{0,30})(?:\/(profile|cmd|op|forget))?$/.exec(route);
+    if (!m) return json(res, 404, { error: 'Not found' });
+    const [, name, what] = m;
+    if (what === 'profile' && method === 'POST') {
+      lpu5.setNode(name, { profile: body.profile, label: body.label, team: body.team, adopted: body.adopted });
+      log('LPU5: profile', name, JSON.stringify(body.profile || {}));
+      return json(res, 200, view());
+    }
+    if (what === 'forget' && method === 'POST') { lpu5.forget(name); return json(res, 200, view()); }
+    if (what === 'cmd' && method === 'POST') {
+      const cmd = String(body.cmd || '').trim().slice(0, 200);
+      if (!cmd) return json(res, 400, { error: 'Enter a command.' });
+      log('LPU5 command', name + ':', cmd);
+      const r = await lpu5.request(name, { cmd });
+      return json(res, 200, { result: r.result });
+    }
+    if (what === 'op' && method === 'POST') {
+      const op = String(body.op || '');
+      if (!/^mesh\.[a-z_]+$/.test(op)) return json(res, 400, { error: 'Unknown operation.' });
+      if (op !== 'mesh.info' && op !== 'mesh.nodes') log('LPU5 Meshtastic', name + ':', op, body.args && body.args.section ? body.args.section : '');
+      const r = await lpu5.request(name, { op, args: body.args || {} }, op === 'mesh.traceroute' || op === 'mesh.request_position' ? 120000 : 60000);
+      if (!r.ok) return json(res, 409, { error: r.error || 'Failed.' });
+      return json(res, 200, { data: r.data });
+    }
+  } catch (e) { return json(res, 400, { error: e.message }); }
+  return json(res, 404, { error: 'Not found' });
+}
+
 function fedView() {
   const f = fedConfig();
   const st = federation.state();
@@ -1357,6 +1510,7 @@ async function handleAdminApi(req, res, route) {
   if (route === 'federation' || route.startsWith('federation/')) return await handleFederation(req, res, route.slice(11), method);
   if (route === 'tracks' || route.startsWith('tracks/')) return await handleTracks(req, res, route.slice(7), method);
   if (route === 'hq' || route.startsWith('hq/')) return await handleHq(req, res, route.slice(3).replace(/^\//, ''), method);
+  if (route === 'lpu5' || route.startsWith('lpu5/')) return await handleLpu5(req, res, route.slice(4).replace(/^\//, ''), method);
   if (route === 'takvideo' && method === 'GET') return json(res, 200, takVideo.state());
   if (route === 'takvideo/settings' && method === 'POST') { takVideo.setSettings(await readJson(req)); return json(res, 200, takVideo.state()); }
   if (route === 'takvideo/sync' && method === 'POST') { const r = await takVideo.syncAll(); return json(res, 200, { ...r, ...takVideo.state() }); }
@@ -1916,6 +2070,7 @@ server.listen(config.port, config.bind, () => {
   if (store.data.admin.mustChange) log('First start: admin login admin / admin123 – the password is changed at the first login.');
   federation.apply(); // TAK server federation (if switched on)
   recApply().catch(e => log('Mission tracks: ' + e.message)); // a recording that was running before the restart
+  lpu5Apply(); // LPU5 field devices (if set up)
 });
 
 function shutdown() {
@@ -1923,6 +2078,9 @@ function shutdown() {
   hub.shutdown();
   federation.stop();
   if (recLink) recLink.stop();
+  lpu5.stop();
+  meshGw.stop();
+  if (gwLink) gwLink.stop();
   if (tracks.active()) try { store.save(); } catch (e) { /* data folder gone */ } // summary of a running recording
   klvFeeds.close();
   for (const c of wss.clients) c.close(1001, 'server shutdown');

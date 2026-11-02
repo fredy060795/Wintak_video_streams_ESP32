@@ -193,6 +193,7 @@
   }
 
   const parseUserPayload = buf => parseUser(decode(buf));
+  const parseMeshPacket = buf => parsePacket(decode(buf)); // a bare MeshPacket (LPU5 gateway, lib/meshgw.js)
   const parsePositionPayload = buf => parsePosition(decode(buf));
 
   // ---------------- CoT ----------------
@@ -386,7 +387,7 @@
 
   return {
     PORT, BROADCAST, ALL_CHAT, TEAMS, ROLES, FOUNTAIN, Writer, decode,
-    wantConfig, toRadioPacket, takPli, takChat, parseTak, parseFromRadio, parseUserPayload, parsePositionPayload,
+    wantConfig, toRadioPacket, takPli, takChat, parseTak, parseFromRadio, parseMeshPacket, parseUserPayload, parsePositionPayload,
     pliCot, chatCot, nodeCot, nodeTeam, nodeId, utf8,
     JavaRandom, fountainIndices, fountainEncode, fountainDecode, parseFountain, fountainAck, fountainBlockCount,
   };

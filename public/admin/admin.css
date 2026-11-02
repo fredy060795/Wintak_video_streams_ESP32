@@ -88,6 +88,8 @@ table.streams { width: 100%; border-collapse: collapse; font-size: 14px; }
 .modal { position: fixed; inset: 0; z-index: 1000; background: rgba(0, 0, 0, .45); display: flex; align-items: center; justify-content: center; padding: 16px; }
 .modal-box { width: 100%; max-width: 520px; max-height: 90vh; overflow: auto; box-shadow: var(--shadow); margin: 0; }
 .modal-box h3 { font-size: 15px; margin: 18px 0 4px; }
+.modal-box.wide { max-width: 980px; }
+.modal-box fieldset { margin: 8px 0; }
 .qr { display: block; width: 100%; max-width: 300px; margin: 8px auto; background: #fff; border-radius: 8px; }
 .links dt { font-size: 12px; color: var(--mut); margin-top: 8px; }
 .links dd { margin: 2px 0 0; display: flex; gap: 4px; }
