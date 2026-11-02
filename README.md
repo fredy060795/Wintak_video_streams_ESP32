@@ -441,7 +441,8 @@ ATAK/WinTAK users open the link.
 
 **Over Meshtastic (LoRa):** with a connected radio that sends, the voice message also goes over LoRa – compressed with
 **Codec 2** at 1300 bit/s (10 s ≈ 1.6 KB, 3 s = 4 packets ~1.6 s apart), to All or as a direct message (like text: no
-team/group rooms). Without internet it goes over LoRa only (max. 15 s). Receivers get "🎤 Voice message (mesh)" with a
+team/group rooms). Without internet it goes over LoRa only (max. 15 s) – as soon as a radio is connected, whatever the Meshtastic send
+setting (a voice message is sent on purpose); a radio that is just reconnecting is waited for a few seconds. Receivers get "🎤 Voice message (mesh)" with a
 ▶ button; lost packets are asked for again automatically. A gateway with internet puts it on the TAK server as well
 (recording + link). Who gets it over both ways sees it once (same message id).
 
