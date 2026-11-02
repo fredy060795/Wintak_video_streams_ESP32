@@ -137,3 +137,10 @@ table.grid tr.off td { opacity: .5; }
 .radio .ptt.tx { background: #b3261e; border-color: #ff6b5e; }
 .radio .ptt.rx { background: #1d3150; border-color: #4ea1ff; }
 #hqTalker { min-width: 80px; }
+
+.ev-head { justify-content: space-between; margin: 14px 0 6px; }
+.ev-head h3 { margin: 0; }
+.ev-head select { padding: 2px 6px; font-size: 12px; }
+.clean { margin-top: 12px; border-top: 1px solid var(--bd); padding-top: 8px; }
+.clean summary { cursor: pointer; color: var(--mut); }
+#ovCleanBox { display: grid; gap: 4px; margin: 8px 0; }

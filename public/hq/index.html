@@ -44,8 +44,20 @@
       <aside class="side">
         <div class="filters" id="ovFilters"></div>
         <div class="counts" id="ovCounts"></div>
-        <h3>Latest events</h3>
+        <div class="row ev-head">
+          <h3>Latest events</h3>
+          <select id="ovWindow" title="Show events of"><option value="15">15 min</option><option value="60">1 h</option><option value="180">3 h</option><option value="0">all</option></select>
+        </div>
         <ul class="events" id="ovEvents"></ul>
+        <details class="clean"><summary>🧹 Clean up the situation</summary>
+          <div id="ovCleanBox">
+            <label class="check small"><input type="checkbox" value="events" checked> hide earlier events</label>
+            <label class="check small"><input type="checkbox" value="offline" checked> remove offline users</label>
+            <label class="check small"><input type="checkbox" value="objects"> remove markers &amp; drawings from this view</label>
+          </div>
+          <button type="button" id="ovClean">Clean up now</button>
+          <p class="mut small">For all HQ screens. The situation log, the events page and mission recordings stay complete.</p>
+        </details>
       </aside>
     </div>
   </section>

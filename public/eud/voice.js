@@ -172,6 +172,60 @@
       } catch (e) { /* no sound */ }
     }
   }
+  // voice message: microphone -> 8 kHz 16-bit mono WAV (max. maxMs), for the chat
+  class VoiceRecorder {
+    async start(maxMs = 30000, onTick = () => {}) {
+      this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (this.ctx.state === 'suspended') await this.ctx.resume();
+      const src = this.ctx.createMediaStreamSource(this.stream);
+      const proc = this.ctx.createScriptProcessor(2048, 1, 1);
+      const ratio = this.ctx.sampleRate / RATE;
+      this.samples = [];
+      let pos = 0, carry = new Float32Array(0);
+      proc.onaudioprocess = e => {
+        const inp = e.inputBuffer.getChannelData(0);
+        const buf = new Float32Array(carry.length + inp.length);
+        buf.set(carry); buf.set(inp, carry.length);
+        while (pos + ratio <= buf.length) {
+          let sum = 0;
+          const a = Math.floor(pos), b = Math.floor(pos + ratio);
+          for (let i = a; i < b; i++) sum += buf[i];
+          this.samples.push(Math.max(-1, Math.min(1, sum / Math.max(1, b - a))));
+          pos += ratio;
+        }
+        const keep = Math.floor(pos);
+        carry = buf.slice(keep);
+        pos -= keep;
+      };
+      src.connect(proc);
+      proc.connect(this.ctx.destination);
+      this.proc = proc;
+      this.t0 = Date.now();
+      this.tick = setInterval(() => { const ms = Date.now() - this.t0; onTick(ms); if (ms >= maxMs) this.onLimit && this.onLimit(); }, 250);
+    }
+    stop() {
+      clearInterval(this.tick);
+      if (this.proc) this.proc.disconnect();
+      if (this.stream) this.stream.getTracks().forEach(t => t.stop());
+      if (this.ctx) this.ctx.close().catch(() => {});
+      const pcm = Int16Array.from(this.samples || [], x => Math.round(x * 32767));
+      this.samples = [];
+      return { pcm, ms: Math.round(pcm.length / RATE * 1000) };
+    }
+  }
+  function wav(pcm) {
+    const b = new ArrayBuffer(44 + pcm.length * 2), v = new DataView(b);
+    const str = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+    str(0, 'RIFF'); v.setUint32(4, 36 + pcm.length * 2, true); str(8, 'WAVE'); str(12, 'fmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, RATE, true);
+    v.setUint32(28, RATE * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); str(36, 'data'); v.setUint32(40, pcm.length * 2, true);
+    new Int16Array(b, 44).set(pcm);
+    return new Blob([b], { type: 'audio/wav' });
+  }
+  TakVoice.Recorder = VoiceRecorder;
+  TakVoice.wav = wav;
+
   window.TakVoice = TakVoice;
   window.TakVoice.codec = { mulawEncode, DECODE };
 
@@ -234,4 +288,38 @@
   document.addEventListener('keydown', e => { if (e.code === 'Space' && v && !e.repeat && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !$('voiceWin').classList.contains('hidden')) { e.preventDefault(); v.pttDown(); } });
   document.addEventListener('keyup', e => { if (e.code === 'Space' && v && !$('voiceWin').classList.contains('hidden')) v.pttUp(); });
   $('vcVol').addEventListener('input', () => { if (v) v.volume = Number($('vcVol').value); });
+
+  // ---------------- voice messages in the chat ----------------
+  const MSG_MS = 30000;
+  let rec = null;
+  const fmtMs = ms => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
+  function recUi(on) {
+    $('chatMic').classList.toggle('rec', on);
+    $('recBar').classList.toggle('hidden', !on);
+    $('chatForm').classList.toggle('recording', on);
+    $('chatMic').textContent = on ? '➤' : '🎤';
+    $('chatMic').title = on ? 'Send the voice message' : 'Voice message (tap to record, tap again to send)';
+  }
+  async function recStart() {
+    if (!E.serverOnline()) return E.toast('Voice messages need the connection to the TAK server (internet).', 5000);
+    rec = new VoiceRecorder();
+    rec.onLimit = () => recSend();
+    try { await rec.start(MSG_MS, ms => { $('recTime').textContent = `${fmtMs(ms)} / ${fmtMs(MSG_MS)}`; }); } catch (e) { rec = null; return E.toast('Microphone not allowed – allow it in the browser/app settings.', 6000); }
+    recUi(true);
+  }
+  async function recSend() {
+    if (!rec) return;
+    const r = rec; rec = null;
+    recUi(false);
+    const { pcm, ms } = r.stop();
+    if (ms < 700) return E.toast('Too short – tap 🎤, speak, tap ➤ to send.');
+    try {
+      const res = await fetch('/api/eud/voicemsg', { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: wav(pcm) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Upload failed (' + res.status + ')');
+      E.sendChat(`🎤 Voice message ${fmtMs(ms)} ${d.url}`);
+    } catch (e) { E.toast('Voice message not sent: ' + e.message, 6000); }
+  }
+  $('chatMic').addEventListener('click', () => (rec ? recSend() : recStart()));
+  $('recCancel').addEventListener('click', () => { if (rec) { rec.stop(); rec = null; } recUi(false); });
 })();

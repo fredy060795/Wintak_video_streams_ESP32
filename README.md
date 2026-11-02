@@ -427,14 +427,24 @@ Audio: G.711 µ-law at 8 kHz (radio quality, ~64 kbit/s while talking, nothing w
 (`/ws/voice`). Only TAKweb devices connected to a TAK server through TAKweb and admin/HQ sessions can join. The phone must
 stay in front with the screen on (the browser stops the microphone in the background).
 
+### Voice messages in the chat
+
+🎤 next to the chat input: tap to record (max. 30 s), ➤ sends, ✕ discards. The recording goes to the TAKweb server
+(kept 3 days like the chat) and a normal chat message with the link goes out – TAKweb shows a player right in the chat,
+ATAK/WinTAK users open the link. Needs the connection to the TAK server (internet); over Meshtastic only the message with
+the link arrives so far (voice over LoRa would need the Codec 2 codec).
+
 ## HQ (operations room)
 
 Admin → **HQ** (or `/hq/` on the admin address, admin login) opens the HQ pages – one per monitor: **⧉** opens the
 current page in a new window, **⛶** full screen. Live from the own TAK server (TAKweb's connection `takweb_recorder`,
 reads every group):
 
-- **Situation:** map with everybody (team colour, direction, role, mesh devices marked), tracks of the last 20 min,
-  markers and drawings, areas; counters online / offline / hostile / at base / out / mesh; latest events.
+- **Situation:** map with everybody (team colour, direction, role, mesh devices marked), markers and drawings, areas –
+  no tracks, so it stays calm on a big monitor (tracks: mission recording); counters online / offline / hostile / at base
+  / out / mesh; latest events of the last 15 min / 1 h / 3 h / all. **🧹 Clean up** (long missions, for all HQ screens):
+  hide earlier events, remove offline users, remove markers and drawings from the view – the situation log, the events
+  page and recordings stay complete.
   Filter by role (Team Lead, Team Member, HQ, Medic, Sniper, RTO, FO, K9) and Meshtastic.
 - **Troops:** list of every user with team, role, online/offline, last seen, area, speed, battery, device; search, team
   and role filters, "online only", ⌖ shows the user on the map.
@@ -448,7 +458,7 @@ reads every group):
   as CoT, TAKweb helmet/phone cameras.
 - **Events:** everything that happened, filterable.
 - **Hostile warning:** a new hostile marker (a-h-…) opens a warning with sound on every HQ page – text, remarks, who set
-  it, "Show on map"; also logged as an enemy report. What the server sends again right after connecting is no warning.
+  it, "Show on map" – closes by itself after 10 s (nobody has to click on the big monitor); also logged as an enemy report. What the server sends again right after connecting is no warning.
 
 Planned next: APRS input for external GPS devices and a radio log (USB audio or SDR stick with speech-to-text).
 
