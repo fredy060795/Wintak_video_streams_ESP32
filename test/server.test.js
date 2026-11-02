@@ -797,6 +797,32 @@ test('HQ: page and API only with the admin login; situation log, units, geofence
   assert.match(await csv.text(), /Need water/);
 });
 
+test('voice: only TAKweb devices with a TAK connection or the admin/HQ; audio goes to the others', async () => {
+  const WebSocket = require('ws');
+  const wsBase = base.replace(/^http/, 'ws') + '/ws/voice';
+  const open = headers => new Promise((resolve, reject) => {
+    const ws = new WebSocket(wsBase, { headers });
+    ws.msgs = []; ws.bins = [];
+    ws.on('message', (d, bin) => (bin ? ws.bins.push(d) : ws.msgs.push(JSON.parse(String(d)))));
+    ws.on('open', () => resolve(ws));
+    ws.on('unexpected-response', (req, res) => reject(Object.assign(new Error('refused'), { status: res.statusCode })));
+    ws.on('error', reject);
+  });
+  await assert.rejects(open({}), e => e.status === 403, 'nobody without a login');
+  const a = await open({ cookie }), b = await open({ cookie });
+  const wait = (ws, type) => new Promise(r => { const t = setInterval(() => { const m = ws.msgs.find(x => x.type === type); if (m) { clearInterval(t); r(m); } }, 20); });
+  a.send(JSON.stringify({ type: 'join', channel: 'All', callsign: 'HQ' }));
+  b.send(JSON.stringify({ type: 'join', channel: 'All', callsign: 'HQ 2' }));
+  await wait(b, 'roster');
+  a.send(JSON.stringify({ type: 'ptt', on: true }));
+  assert.equal((await wait(b, 'floor')).talker, 'HQ');
+  a.send(Buffer.alloc(480, 1));
+  await new Promise(r => setTimeout(r, 200));
+  assert.equal(b.bins.length, 1);
+  assert.equal(b.bins[0].length, 480);
+  a.close(); b.close();
+});
+
 test('helpers: may approve and create users, but not change settings', async () => {
   const { createMockOts } = require('./ots-mock');
   const mock = createMockOts();

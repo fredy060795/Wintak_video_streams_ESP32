@@ -530,5 +530,34 @@ function render() {
   else if (page === 'events') renderEventPage();
 }
 
+// ---------------- VoIP push-to-talk (public/eud/voice.js) ----------------
+const radio = new TakVoice({
+  callsign: 'HQ',
+  onState: (st, msg) => { if (st !== 'connected') $('hqTalker').textContent = st === 'connecting' ? '…' : (msg || st); },
+  onRoster: m => {
+    const cur = $('hqVcCh').value;
+    const list = [...new Set(['All'].concat(m.channels || [], [...new Set(S.devices.map(d => d.team).filter(Boolean))]))];
+    if ([...$('hqVcCh').options].map(o => o.value).join() !== list.join()) $('hqVcCh').replaceChildren(...list.map(c => el('option', { value: c, text: c === 'All' ? '📻 All' : '📻 ' + c })));
+    $('hqVcCh').value = list.includes(cur) ? cur : m.channel;
+    $('hqTalker').textContent = m.talker ? '🔊 ' + m.talker : `${m.users.length} on`;
+    $('hqTalker').title = m.users.map(u => u.callsign).join(', ');
+  },
+  onFloor: m => {
+    $('hqPtt').classList.toggle('tx', !!m.me);
+    $('hqPtt').classList.toggle('rx', !!m.talker && !m.me);
+    $('hqTalker').textContent = m.me ? 'talking …' : m.talker ? '🔊 ' + m.talker : 'free';
+    if (m.talker && !m.me) toast('🔊 ' + m.talker + ' is talking');
+  },
+  onBusy: t => toast(t + ' is talking – wait until the channel is free.'),
+  onError: msg => toast(msg),
+});
+radio.connect();
+$('hqVcCh').addEventListener('change', () => radio.join($('hqVcCh').value));
+$('hqPtt').addEventListener('pointerdown', e => { e.preventDefault(); radio.pttDown(); });
+for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) $('hqPtt').addEventListener(ev, () => radio.pttUp());
+// hold F2 to talk (also while another HQ page is shown)
+document.addEventListener('keydown', e => { if (e.key === 'F2' && !e.repeat) { e.preventDefault(); radio.pttDown(); } });
+document.addEventListener('keyup', e => { if (e.key === 'F2') radio.pttUp(); });
+
 showPage(location.hash.slice(1) || 'overview');
 poll();

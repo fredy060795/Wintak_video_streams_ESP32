@@ -413,6 +413,20 @@ overlays, contacts, chat) and an optional note. Every TAKweb device asks its use
 new markers stay – and cleared content does not come back when a TAK server sends it again. A new request replaces the
 old one; "Withdraw request" ends it. ATAK/iTAK/WinTAK are not affected.
 
+## VoIP push-to-talk (radio net)
+
+Menu → **VoIP PTT** in the TAKweb app (can also go into the top bar): a small radio panel with channel (**All** or the own
+team), who is in the channel, who is talking, and a big **PTT** button – hold to talk, release to listen (desktop: hold
+the space bar). One speaker per channel like on a radio: whoever presses while somebody talks hears a busy tone; a roger
+beep marks the end of each transmission; nobody can hold a channel longer than 60 s. Closing the panel (✕) keeps you on the
+net, ⏻ leaves it.
+
+The HQ pages have the same in the header (channel, **PTT**, F2 = hold to talk) with the callsign HQ.
+
+Audio: G.711 µ-law at 8 kHz (radio quality, ~64 kbit/s while talking, nothing while silent) over the TAKweb server
+(`/ws/voice`). Only TAKweb devices connected to a TAK server through TAKweb and admin/HQ sessions can join. The phone must
+stay in front with the screen on (the browser stops the microphone in the background).
+
 ## HQ (operations room)
 
 Admin → **HQ** (or `/hq/` on the admin address, admin login) opens the HQ pages – one per monitor: **⧉** opens the

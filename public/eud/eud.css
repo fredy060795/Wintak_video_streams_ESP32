@@ -440,3 +440,23 @@ body:has(.tmenu:not(.hidden)) #toast { top: calc(190px + var(--top)); }
 #permGo { background: #1f6f3a; border: 1px solid #2e8b4a; color: #fff; border-radius: 3px; padding: 8px 12px; font: 600 13px var(--font); }
 #permClose { background: none; border: none; color: #fff; font-size: 16px; padding: 4px 6px; }
 a.mbtn { color: #fff; text-decoration: none; box-sizing: border-box; }
+
+/* VoIP push-to-talk (voice.js): small panel above the map, stays on when closed */
+#voiceWin { position: fixed; z-index: 7100; right: 8px; bottom: calc(8px + var(--bottom)); width: min(320px, calc(100vw - 16px));
+  background: var(--sheet); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 20px rgba(0, 0, 0, .6); padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 6px; }
+.vc-head { display: flex; align-items: center; gap: 6px; }
+.vc-head b { font-size: 16px; }
+.vc-head select { flex: 1; min-width: 0; background: #222; color: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 4px; }
+.vc-head button { width: 34px; height: 34px; background: none; border: none; color: #fff; font-size: 17px; }
+.vc-state { font-size: 11px; color: #aaa; }
+.vc-state.connected { color: #67ea94; }
+.vc-state.error { color: #ff7b72; }
+.vc-users { font-size: 12px; color: #aaa; max-height: 34px; overflow: hidden; }
+.vc-talker { font-size: 15px; text-align: center; min-height: 20px; }
+.vc-ptt { height: 96px; border-radius: 12px; border: 2px solid #3a6; background: #1d3a26; color: #fff; font-size: 26px; font-weight: 700;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.vc-ptt small { font-size: 11px; font-weight: 400; color: #bbb; }
+.vc-ptt.tx { background: #b3261e; border-color: #ff6b5e; }
+.vc-ptt.rx { background: #1d3150; border-color: #4ea1ff; }
+.vc-vol { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #aaa; }
+.vc-vol input { flex: 1; }

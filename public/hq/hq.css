@@ -130,3 +130,10 @@ table.grid tr.off td { opacity: .5; }
   .split, .split.log { grid-template-columns: 1fr; }
   .map { min-height: 50vh; }
 }
+
+/* VoIP push-to-talk in the header */
+.radio { display: flex; align-items: center; gap: 6px; }
+.radio .ptt { font-weight: 800; padding: 6px 16px; border-color: #3a6; background: #1d3a26; touch-action: none; user-select: none; }
+.radio .ptt.tx { background: #b3261e; border-color: #ff6b5e; }
+.radio .ptt.rx { background: #1d3150; border-color: #4ea1ff; }
+#hqTalker { min-width: 80px; }

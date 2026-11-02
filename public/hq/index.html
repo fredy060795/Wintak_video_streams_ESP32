@@ -22,6 +22,11 @@
     <a href="#video" data-page="video">Video wall</a>
     <a href="#events" data-page="events">Events</a>
   </nav>
+  <div class="radio" id="hqRadio" title="VoIP push-to-talk with the TAKweb phones">
+    <select id="hqVcCh"><option value="All">📻 All</option></select>
+    <button type="button" id="hqPtt" class="ptt">PTT</button>
+    <span id="hqTalker" class="mut small">off</span>
+  </div>
   <div class="status">
     <span id="srcState" class="pill">…</span>
     <span id="recState" class="pill rec hidden">● REC</span>
@@ -145,6 +150,7 @@
 <script src="/eud/vendor/leaflet.js"></script>
 <script src="/eud/vendor/milsymbol.js"></script>
 <script src="/eud/vendor/hls.min.js"></script>
+<script src="/eud/voice.js?v=__TAKWEB_VERSION__"></script>
 <script src="hq.js?v=__TAKWEB_VERSION__"></script>
 </body>
 </html>
