@@ -6,7 +6,7 @@ const TILE_CACHE = 'eud-tiles';
 const MAX_TILES = 40000; // saved areas + recently viewed tiles
 const VERSION = '__TAKWEB_VERSION__';
 // own files are loaded as file?v=<version> (index.html): page and files always belong to the same version
-const OWN = ['eud.css', 'eud.js', 'view3d.js', 'video.js', 'data.js', 'meshproto.js', 'blenative.js', 'mesh.js', 'tools.js'].map(f => `${f}?v=${VERSION}`);
+const OWN = ['eud.css', 'eud.js', 'view3d.js', 'video.js', 'data.js', 'meshproto.js', 'blenative.js', 'mesh.js', 'tools.js', 'voice.js'].map(f => `${f}?v=${VERSION}`);
 const SHELL = [
   './', 'index.html', ...OWN, 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'tak-badge.png',

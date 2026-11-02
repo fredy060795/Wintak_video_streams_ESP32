@@ -34,6 +34,7 @@ const { KlvFeeds } = require('./lib/klvfeed');
 const { Federation } = require('./lib/federation');
 const { Tracks, stateOf } = require('./lib/tracks');
 const { Hq } = require('./lib/hq');
+const { Voice } = require('./lib/voice');
 const raster = require('./lib/raster');
 
 const config = {
@@ -1694,6 +1695,16 @@ async function handle(req, res) {
 
 const wss = new WebSocketServer({ noServer: true, maxPayload: 2 * 1024 * 1024 });
 const takWss = new WebSocketServer({ noServer: true, maxPayload: 1024 * 1024 });
+// push-to-talk voice: TAKweb devices connected to a TAK server right now (same address) and the admin/HQ
+const voiceWss = new WebSocketServer({ noServer: true, maxPayload: 16 * 1024 });
+const voice = new Voice({ log });
+function voiceWho(req) {
+  const ses = auth.check(cookies(req).sid);
+  if (ses) return { hq: true, callsign: '' };
+  const ip = clientIp(req);
+  const link = [...takLinks.values()].find(l => l.ip === ip && l.state === 'connected');
+  return link ? { hq: false, callsign: link.callsign || '' } : null;
+}
 const takLinks = new Map(); // ws -> connection info (for the admin overview)
 const MAP_CLEAR_CATS = ['contacts', 'f', 'h', 'n', 'u', 'points', 'shapes', 'overlays', 'chat'];
 const mapClearMsg = () => JSON.stringify({ type: 'mapclear', request: store.data.mapClear || null });
@@ -1792,6 +1803,11 @@ function handleTakSocket(ws, req) {
 function handleUpgrade(req, socket, head) {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/ws/tak') return takWss.handleUpgrade(req, socket, head, ws => handleTakSocket(ws, req));
+  if (url.pathname === '/ws/voice') {
+    const who = voiceWho(req);
+    if (!who) { socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n'); return socket.destroy(); }
+    return voiceWss.handleUpgrade(req, socket, head, ws => voice.attach(ws, who));
+  }
   if (url.pathname !== '/ws/publish') return socket.destroy();
   wss.handleUpgrade(req, socket, head, ws => {
     const user = url.searchParams.get('u') || '';
@@ -1922,6 +1938,7 @@ function shutdown() {
   log('Server shutting down');
   hub.shutdown();
   federation.stop();
+  voice.close();
   if (recLink) recLink.stop();
   if (tracks.active()) try { store.save(); } catch (e) { /* data folder gone */ } // summary of a running recording
   klvFeeds.close();
