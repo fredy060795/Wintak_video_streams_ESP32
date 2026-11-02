@@ -1,8 +1,6 @@
 # TAKweb
 
-> **TAKweb** (formerly “WebTAK”) is an independent open-source project. It is not the official WebTAK of the TAK
-> Product Center and is not affiliated with it. Existing installations keep working after the rename: links, the
-> Android app (`webtak://` links, app ID) and saved settings stay the same.
+> **TAKweb** is an independent open-source project and is not affiliated with the TAK Product Center.
 
 **TAKweb** = TAK in the browser (web app), TAK access with registration and approval (OpenTAKServer) and
 camera streams that end up in the TAK server automatically. Plus a server and phone app for the Bluetooth helmet camera (ESP32-CAM, firmware from

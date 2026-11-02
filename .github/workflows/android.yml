@@ -1,6 +1,5 @@
 # Android app (mobile/): builds the APK. On main it is published as the release "android" –
-# the TAKweb server links to it (/download/webtak.apk → releases/download/android/TAKweb.apk). Also uploaded as
-# WebTAK.apk (the old name) – servers from before the rename link to that one.
+# the TAKweb server links to it (/download/webtak.apk → releases/download/android/TAKweb.apk).
 # Pull requests only build it (check that it compiles).
 name: Android app
 
@@ -73,5 +72,4 @@ jobs:
           else
             gh release create android --title "TAKweb for Android" --notes "$notes" --latest=false
           fi
-          cp TAKweb.apk WebTAK.apk
-          gh release upload android TAKweb.apk WebTAK.apk --clobber
+          gh release upload android TAKweb.apk --clobber
