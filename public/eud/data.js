@@ -166,7 +166,7 @@
           if (pts.length >= 4) b = [[Math.min(...pts.map(p => p[0])), Math.min(...pts.map(p => p[1]))], [Math.max(...pts.map(p => p[0])), Math.max(...pts.map(p => p[1]))]];
         }
         // large map image reduced on import (lib/raster.js): its width in pixels for choosing the detail level
-        const pxData = [...all(go, 'Data')].find(d => d.getAttribute('name') === 'webtakPx');
+        const pxData = [...all(go, 'Data')].find(d => d.getAttribute('name') === 'takwebPx');
         const px = pxData ? Number(txt(pxData, 'value')) : 0;
         if (b && b.flat().every(Number.isFinite)) grounds.push({ bounds: b, url, px, span: Math.abs(b[1][1] - b[0][1]) || 1e-9 });
       }

@@ -48,7 +48,7 @@ const config = {
   // certificate (TLS_CERT) the server runs directly on the network, then it is off by default.
   trustProxy: process.env.TRUST_PROXY !== undefined ? process.env.TRUST_PROXY !== '0' : !process.env.TLS_CERT,
   // Android app: built by GitHub Actions (mobile/, .github/workflows/android.yml) – or an own build / fork
-  apkUrl: process.env.WEBTAK_APK_URL || 'https://github.com/fredy060795/5036-TAKweb/releases/download/android/TAKweb.apk',
+  apkUrl: process.env.TAKWEB_APK_URL || 'https://github.com/fredy060795/5036-TAKweb/releases/download/android/TAKweb.apk',
 };
 
 const log = (...args) => console.log(new Date().toISOString(), ...args);
@@ -82,7 +82,7 @@ const VERSION = (() => {
   for (const f of ['server.js', 'package.json', 'lib', 'public']) { try { walk(path.join(__dirname, f)); } catch (e) { /* missing */ } }
   return `${require('./package.json').version}-${hash.digest('hex').slice(0, 6)}`;
 })();
-const VERSION_TAG = '__WEBTAK_VERSION__';
+const VERSION_TAG = '__TAKWEB_VERSION__';
 
 // ======================================================================
 // Helpers
@@ -457,7 +457,7 @@ async function handleOtsAdmin(req, res, route) {
     });
   }
   if (route === 'users' && method === 'POST') {
-    if (req.webtakHelper) body.admin = false; // helpers only create normal users
+    if (req.takwebHelper) body.admin = false; // helpers only create normal users
     const u = await takUsers.createDirect(body);
     log('Admin: TAK user created', u.username);
     return json(res, 200, { ok: true, user: takUsers.adminView(u), password: u.password, link: accessLink(req, u) });
@@ -608,7 +608,7 @@ async function handleOtsAdmin(req, res, route) {
 async function handleTakAdmin(req, res, route) {
   const method = req.method;
   if (route === 'state' && method === 'GET') {
-    const { password, ...ots } = req.webtakHelper ? { password: '' } : takUsers.t.ots;
+    const { password, ...ots } = req.takwebHelper ? { password: '' } : takUsers.t.ots;
     return json(res, 200, {
       ots: { ...ots, hasPassword: !!password, effectiveHost: takUsers.takHost() }, otsReady: takUsers.otsConfigured(), registration: takUsers.t.registration,
       teams: takUsers.t.teams, blocks: takUsers.t.blocks, users: takUsers.list().map(u => takUsers.adminView(u)),
@@ -781,7 +781,7 @@ async function fedCert(target, { host, enrollPort, username, password, p12, p12P
     Object.assign(target, { certPem: r.certPem, keyPem: r.keyPem, caPems: r.caPems || [], fingerprint: fingerprint || target.fingerprint || '' });
     return;
   }
-  const r = await tak.enroll({ host, port: Number(enrollPort) || tak.ENROLL_PORT, username, password, uid: 'WEBTAK-FED-' + fedConfig().id, caPems: target.caPems || [], fingerprint: fingerprint || target.fingerprint || '' });
+  const r = await tak.enroll({ host, port: Number(enrollPort) || tak.ENROLL_PORT, username, password, uid: 'TAKWEB-FED-' + fedConfig().id, caPems: target.caPems || [], fingerprint: fingerprint || target.fingerprint || '' });
   Object.assign(target, { certPem: r.certPem, keyPem: r.keyPem, caPems: r.caPems, fingerprint: fingerprint || target.fingerprint || '', username });
 }
 // own TAK server: certificate with the OTS login from the settings (the own server is trusted) -> '' or a problem
@@ -1100,7 +1100,7 @@ async function handleAdminApi(req, res, route) {
   if (helper) {
     const allowed = HELPER_ROUTES.some(([m, re]) => m === method && re.test(route.split('?')[0]));
     if (!allowed) return json(res, 403, { error: 'Not allowed as a helper – please ask the admin.' });
-    req.webtakHelper = true;
+    req.takwebHelper = true;
     if (route.startsWith('streams') && method === 'GET') {
       // no stream keys/links, only the notifications (new requests etc.)
       const q = new URL(req.url, 'http://x').searchParams;
@@ -1255,7 +1255,7 @@ async function handleAdminApi(req, res, route) {
     const body = await readJson(req);
     let seqs = body.all ? null : (Array.isArray(body.seqs) ? body.seqs.map(Number) : []);
     // helpers only see (and delete) the access requests
-    if (req.webtakHelper) seqs = hub.events.filter(e => e.kind === 'takreg' && (!seqs || seqs.includes(e.seq))).map(e => e.seq);
+    if (req.takwebHelper) seqs = hub.events.filter(e => e.kind === 'takreg' && (!seqs || seqs.includes(e.seq))).map(e => e.seq);
     hub.deleteEvents(seqs);
     return json(res, 200, { ok: true });
   }
@@ -1410,14 +1410,14 @@ async function handle(req, res) {
     if (p === '/health') return send(res, 200, 'ok');
     if (p === '/version') return json(res, 200, { version: VERSION });
     // the Android app checks this before it uses a server (only a TAKweb server, never just any page)
-    if (p === '/api/eud/app') return json(res, 200, { webtak: true, version: VERSION, name: 'TAKweb' });
+    if (p === '/api/eud/app') return json(res, 200, { takweb: true, version: VERSION, name: 'TAKweb' });
     if (p === '/ca.crt' && config.testCa) {
       return send(res, 200, fs.readFileSync(config.testCa), 'application/x-x509-ca-cert',
         { 'Content-Disposition': 'attachment; filename="helm-camera-test-ca.crt"' });
     }
     // Android app: an APK in the data folder (e.g. without internet in the field), otherwise the GitHub release
-    if (p === '/download/webtak.apk') {
-      const local = path.join(config.dataDir, 'webtak.apk');
+    if (p === '/download/takweb.apk') {
+      const local = path.join(config.dataDir, 'takweb.apk');
       if (fs.existsSync(local)) {
         res.writeHead(200, { 'Content-Type': 'application/vnd.android.package-archive', 'Content-Disposition': 'attachment; filename="TAKweb.apk"', 'Content-Length': fs.statSync(local).size });
         return fs.createReadStream(local).pipe(res);

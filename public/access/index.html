@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="/assets/tak.css">
 </head>
 <body>
-<header class="top"><img src="/assets/brand/takweb-logo-160.png" alt=""><h1>TAKweb <span class="ver">v__WEBTAK_VERSION__</span> <span class="mut">Access</span></h1><span class="badge" id="badge"></span></header>
+<header class="top"><img src="/assets/brand/takweb-logo-160.png" alt=""><h1>TAKweb <span class="ver">v__TAKWEB_VERSION__</span> <span class="mut">Access</span></h1><span class="badge" id="badge"></span></header>
 <main class="wrap">
   <p class="msg" id="msg"></p>
 
@@ -59,7 +59,7 @@
         <div class="appbox" id="appBox">
           <b>Android: TAKweb app</b> – keeps sending your position with the screen locked.
           <div class="row" style="margin-top:8px">
-            <a class="btn" href="/download/webtak.apk">1 · Download the app</a>
+            <a class="btn" href="/download/takweb.apk">1 · Download the app</a>
             <a class="btn blue" id="appOpen" href="#">2 · Open in the TAKweb app</a>
           </div>
           <p class="mut small">Installing: allow "install unknown apps" for your browser when Android asks. Then tap 2 – server and login are taken over.</p>
@@ -272,7 +272,7 @@ async function load() {
   } else $('droneCard').classList.add('hidden');
   p.set('t', token); // TAKweb remembers the access (e.g. for the drone address without typing the password)
   $('eudLink').href = '/eud/#' + p;
-  $('appOpen').href = 'webtak://open?u=' + encodeURIComponent(location.origin + '/eud/#' + p); // Android app (mobile/)
+  $('appOpen').href = 'takweb://open?u=' + encodeURIComponent(location.origin + '/eud/#' + p); // Android app (mobile/)
   if (!/Android/i.test(navigator.userAgent)) $('appBox').classList.add('hidden'); // the app is for Android only
 
 }

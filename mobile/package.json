@@ -1,5 +1,5 @@
 {
-  "name": "webtak-android",
+  "name": "takweb-android",
   "version": "1.0.0",
   "private": true,
   "description": "TAKweb for Android: opens the TAKweb server from the invitation link, with background location",

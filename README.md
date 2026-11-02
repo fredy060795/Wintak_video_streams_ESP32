@@ -173,16 +173,16 @@ One app for every TAKweb server (`mobile/`, Capacitor): it opens the server from
 cannot – **the position keeps being sent with the screen locked** (notification "TAKweb"), no new permission prompts
 after every start.
 - **For users:** access page (or TAKweb → Settings on Android) → **1 · Download the app** → **2 · Open in the TAKweb app**
-  – server and login are taken over (`webtak://open?u=…`). Or in the app: **scan the TAKweb QR code** (camera or a photo of
+  – server and login are taken over (`takweb://open?u=…`). Or in the app: **scan the TAKweb QR code** (camera or a photo of
   it). There is no free address field. In the app: Settings → CHANGE SERVER. Android asks once to allow installing apps
   from the browser.
 - **Safe:** the app only takes a real TAKweb server (it checks `/api/eud/app`), and a link to *another* server is only
-  followed after the user confirmed "Connect to this TAKweb server?" – any web page could offer a `webtak://` link.
+  followed after the user confirmed "Connect to this TAKweb server?" – any web page could offer a `takweb://` link.
   Server not reachable → RETRY or OTHER SERVER, the app is never stuck on a wrong address.
 - **Meshtastic over Bluetooth** works in the app too (native Bluetooth instead of Web Bluetooth, `blenative.js`).
 - **Permissions in the app:** Android keeps the app's permissions – no permission bar after every start like in the browser. Only when location was really refused does a bar appear; ALLOW opens the app settings.
-- **Download:** `/download/webtak.apk` on the TAKweb server – a `webtak.apk` in the data folder (e.g. without internet in
-  the field), otherwise the GitHub release (`WEBTAK_APK_URL`, default: release `android` of this repository).
+- **Download:** `/download/takweb.apk` on the TAKweb server – a `takweb.apk` in the data folder (e.g. without internet in
+  the field), otherwise the GitHub release (`TAKWEB_APK_URL`, default: release `android` of this repository).
 - **Build:** GitHub Actions (`.github/workflows/android.yml`) builds the APK for every change in `mobile/` and publishes it
   on `main` as release `android`. Sign every version with the same key – add the secrets `ANDROID_KEYSTORE_BASE64`,
   `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` (Settings → Secrets → Actions); without them
@@ -421,7 +421,7 @@ server as a TAK client (own certificate per server) and passes data on **in all 
 - **Live data** (positions, markers, drawings, chat, deletions) right away to every other server.
 - **Data packages** every N minutes (or "Sync now"): what one server has and another does not is copied – compared
   by SHA-256, so nothing arrives twice; uploaded like ATAK (`/Marti/sync/missionupload`, the server keeps the hash).
-- **No loops, no duplicates:** forwarded CoT carries a marker (`<__webtakfed>`) and is never passed on again; the same
+- **No loops, no duplicates:** forwarded CoT carries a marker (`<__takwebfed>`) and is never passed on again; the same
   event from two servers is forwarded once; pings, mission changes and file transfer requests stay on their server.
 - **Servers:** the own OpenTAKServer from the settings (certificate with the OTS login, automatically) plus any number
   of others: address, ports, and **user + password** (only used to request the certificate – not stored) or a
@@ -548,12 +548,16 @@ sudo systemctl daemon-reload && sudo systemctl enable --now helm-camera
 | `DATA_DIR` | data directory (admin, SMTP, streams) | `./data` |
 | `FFMPEG_PATH` | path to ffmpeg | `ffmpeg` |
 | `MAX_TAK_PER_IP` | TAKweb devices per public IP (players often share one field router / Starlink) | `40` |
-| `WEBTAK_APK_URL` | where `/download/webtak.apk` leads (own build / fork) – a `webtak.apk` in the data folder has priority | release `android` of this repository |
+| `TAKWEB_APK_URL` | where `/download/takweb.apk` leads (own build / fork) – a `takweb.apk` in the data folder has priority | release `android` of this repository |
 | `TLS_CERT` / `TLS_KEY` | HTTPS directly in the server instead of a reverse proxy | – |
 | `TEST_CA_FILE` | test only: CA file offered for download at `/ca.crt` (set by start.bat) | – |
 | `TRUST_PROXY` | `1` = evaluate X-Forwarded headers from the reverse proxy | `1`, with `TLS_CERT` `0` |
 
 All data is stored in `DATA_DIR/db.json` (admin password only as a scrypt hash).
+
+**Updating an installation from before November 2026:** the data (`DATA_DIR`) stays as it is. Rename the environment
+variables to `TAKWEB_*` (e.g. `TAKWEB_APK_URL`). The Android app has a new app ID and link scheme (`takweb://`):
+uninstall the old app on the phones, install TAKweb and open the invitation link again (or scan the QR code).
 
 ## For developers
 

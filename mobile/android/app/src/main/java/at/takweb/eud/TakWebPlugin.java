@@ -1,4 +1,4 @@
-package at.webtak.eud;
+package at.takweb.eud;
 
 import android.net.Uri;
 import com.getcapacitor.JSObject;
@@ -9,8 +9,8 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 // for the start page (scanned TAKweb QR code) and the EUD (change server): only a real TAKweb server is taken,
 // then the app starts again on it
-@CapacitorPlugin(name = "WebTak")
-public class WebTakPlugin extends Plugin {
+@CapacitorPlugin(name = "TakWeb")
+public class TakWebPlugin extends Plugin {
 
     @PluginMethod
     public void setServer(PluginCall call) {
@@ -27,7 +27,7 @@ public class WebTakPlugin extends Plugin {
             return;
         }
         new Thread(() -> {
-            if (!MainActivity.isWebTak(url)) {
+            if (!MainActivity.isTakWeb(url)) {
                 call.reject("No TAKweb server at " + u.getHost() + ".");
                 return;
             }

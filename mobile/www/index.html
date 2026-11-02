@@ -51,7 +51,7 @@
 </main>
 <script src="jsQR.js"></script>
 <script>
-  // first start (no server yet): only a scanned TAKweb code is taken; the native part (WebTakPlugin) checks that it
+  // first start (no server yet): only a scanned TAKweb code is taken; the native part (TakWebPlugin) checks that it
   // really is a TAKweb server, keeps it and starts the app again on it. No free address entry – nothing else is possible.
   const $ = id => document.getElementById(id);
   const msg = (t, ok) => { $('msg').textContent = t; $('msg').className = ok ? 'ok' : ''; };
@@ -76,7 +76,7 @@
     stop();
     msg('Checking ' + url.host + ' …', true);
     try {
-      await window.Capacitor.Plugins.WebTak.setServer({ url: url.href }); // the app restarts on the server
+      await window.Capacitor.Plugins.TakWeb.setServer({ url: url.href }); // the app restarts on the server
     } catch (e) {
       busy = false;
       msg(e.message || 'No TAKweb server at this address.');

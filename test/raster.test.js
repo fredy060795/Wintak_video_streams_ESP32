@@ -41,7 +41,7 @@ test('large GroundOverlay image -> overview + full-resolution pieces, small imag
   assert.ok(ov, 'overlay found inside the data package');
   const keys = Object.keys(ov.images);
   // 5000 x 2500 -> 3 x 2 pieces of max 2048 px + overview
-  assert.equal(keys.filter(k => /webtak-raster\/.*\/p\d+\.webp$/.test(k)).length, 6);
+  assert.equal(keys.filter(k => /takweb-raster\/.*\/p\d+\.webp$/.test(k)).length, 6);
   assert.ok(keys.some(k => /\/o\.webp$/.test(k)));
   assert.ok(!keys.includes('files/map.png'), 'the original big image is not sent');
   assert.match(ov.images['files/small.png'], /^data:image\/png;base64,/, 'small image unchanged');
@@ -49,12 +49,12 @@ test('large GroundOverlay image -> overview + full-resolution pieces, small imag
   // KML: overview (4096 px) + pieces with their own LatLonBox, the small overlay untouched
   const gos = ov.kml.match(/<GroundOverlay>[\s\S]*?<\/GroundOverlay>/g);
   assert.equal(gos.length, 1 + 6 + 1);
-  assert.match(gos[0], /o\.webp[\s\S]*<north>49\.4<\/north>[\s\S]*webtakPx"><value>4096</);
+  assert.match(gos[0], /o\.webp[\s\S]*<north>49\.4<\/north>[\s\S]*takwebPx"><value>4096</);
   assert.match(ov.kml, /<href>files\/small\.png<\/href>/);
   const first = gos[1];
   assert.match(first, /p0\.webp/);
   assert.equal(Number(/<west>([^<]+)</.exec(first)[1]), 14.0);
   assert.ok(Math.abs(Number(/<east>([^<]+)</.exec(first)[1]) - (14.0 + 0.2 * 2048 / 5000)) < 1e-9, 'piece east by its pixels');
-  assert.match(first, /webtakPx"><value>2048</);
+  assert.match(first, /takwebPx"><value>2048</);
   assert.ok(JSON.stringify(out).length < big.length, 'sent smaller than the original');
 });

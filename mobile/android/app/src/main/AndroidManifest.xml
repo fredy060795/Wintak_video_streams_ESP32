@@ -22,12 +22,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- invitation link from the access page: webtak://open?u=https://<server>/eud/#… -->
+            <!-- invitation link from the access page: takweb://open?u=https://<server>/eud/#… -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="webtak" android:host="open" />
+                <data android:scheme="takweb" android:host="open" />
             </intent-filter>
 
         </activity>

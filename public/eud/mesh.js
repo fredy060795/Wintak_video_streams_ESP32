@@ -448,11 +448,11 @@
   // what only came from the server goes over LoRa – everybody ends up with the same picture.
   // No duplicates, no loops, no collisions with several gateways:
   // - every gateway waits a random 2–8 s and skips what has meanwhile arrived on the other side,
-  // - what a gateway passes on carries <__webtakmesh/> and never goes back,
+  // - what a gateway passes on carries <__takwebmesh/> and never goes back,
   // - only TAK content: plain Meshtastic nodes/texts (strangers on a public channel) stay off the TAK server,
   // - only live content: what a server sends again on connecting stays off LoRa,
   // - towards LoRa: positions of a contact at most every 5 min, one packet every 3 s (airtime).
-  const MARK = '__webtakmesh';
+  const MARK = '__takwebmesh';
   const SEEN_MS = 10 * 60000, PLI_SAME_MS = 90000, PLI_DOWN_MS = 5 * 60000;
   const seenServer = new Map(), seenMesh = new Map(), pliDown = new Map();
   const pendingUp = new Set(), pendingDown = new Set(); // waiting right now (an update arriving meanwhile is not scheduled twice)

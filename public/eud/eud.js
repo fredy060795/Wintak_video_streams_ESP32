@@ -1236,7 +1236,7 @@ let geoWatch = null, geoDenied = false;
 // Android app (mobile/, Capacitor): the native plugins are in the page – the position keeps coming with the screen
 // locked (a notification shows it), in the browser only while TAKweb is in front
 const appPlugins = (window.Capacitor && window.Capacitor.Plugins) || {};
-const nativeApp = !!appPlugins.WebTak;
+const nativeApp = !!appPlugins.TakWeb;
 const bgGeo = appPlugins.BackgroundGeolocation;
 function onPosition(c, t) {
   if (geoDenied) { geoDenied = false; updatePermBar(); }
@@ -1705,13 +1705,13 @@ function fillMe() {
     $('appServer').classList.remove('hidden');
     $('appText').textContent = `TAKweb app · server ${location.host}. Your position is also sent with the screen locked (notification "TAKweb").`;
     $('appServer').addEventListener('click', () => {
-      if (confirm('Choose another TAKweb server? The app starts again.')) appPlugins.WebTak.setServer({ url: '' });
+      if (confirm('Choose another TAKweb server? The app starts again.')) appPlugins.TakWeb.setServer({ url: '' });
     });
     return;
   }
   $('appText').textContent = 'The TAKweb app for Android keeps sending your position with the screen locked. Install it, then tap "Open in the app" – server and login are taken over.';
   // the invitation this page was opened with (login included), otherwise just this server
-  $('appOpen').href = 'webtak://open?u=' + encodeURIComponent(location.origin + location.pathname + (/host=/.test(launchHash) ? launchHash : ''));
+  $('appOpen').href = 'takweb://open?u=' + encodeURIComponent(location.origin + location.pathname + (/host=/.test(launchHash) ? launchHash : ''));
 })();
 
 $('meSave').addEventListener('click', () => {

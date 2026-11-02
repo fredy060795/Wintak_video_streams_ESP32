@@ -67,7 +67,7 @@ test('approval only with OTS; creates account, groups and QR; overriding the cal
   await assert.rejects(tu.approve(horst.id), /OpenTAKServer/);
   tu.setOts({ url, username: 'otsadmin', password: 'otspass', host: 'tak.example.com' });
   assert.equal(tu.fixQr('tak://com.atakmap.app/enroll?host=127.0.0.1:8089&username=a&token=b'), 'tak://com.atakmap.app/enroll?host=tak.example.com:8089&username=a&token=b');
-  assert.equal(tu.fixQr('tak://com.atakmap.app/enroll?host=webtak.example.org&username=a&token=b'), 'tak://com.atakmap.app/enroll?host=tak.example.com&username=a&token=b');
+  assert.equal(tu.fixQr('tak://com.atakmap.app/enroll?host=takweb.example.org&username=a&token=b'), 'tak://com.atakmap.app/enroll?host=tak.example.com&username=a&token=b');
   await tu.setTeams([{ name: 'Blue', color: 'Blue' }, { name: 'Red', color: 'Red' }], []);
   const blue = tu.t.teams[0], red = tu.t.teams[1];
   const u = await tu.approve(horst.id, { callsign: 'Alpha 10', team: blue.id, role: 'Team Lead' });

@@ -975,12 +975,12 @@ test('TAKweb video: HLS feeds through our own server (playlist rewritten, segmen
 test('TAK access: mails – the user never gets an admin link, the admin notification only goes to the admin address', async () => {
   const sink = await smtpSink();
   try {
-    await api('smtp', { method: 'POST', body: { host: '127.0.0.1', port: sink.port, secure: false, from: 'webtak@example.com' } });
+    await api('smtp', { method: 'POST', body: { host: '127.0.0.1', port: sink.port, secure: false, from: 'takweb@example.com' } });
     await api('takusers/registration', { method: 'POST', body: { open: true, emailConfirm: true, codeword: '' } });
     const pub = (p, body) => fetch(base + '/api/access/' + p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(async r => ({ status: r.status, data: await r.json() }));
     const flat = m => m.replace(/=\n/g, '').replace(/=3D/g, '=');
     const waitMails = async n => { for (let i = 0; i < 100 && sink.mails.length < n; i++) await sleep(30); };
-    await api('public-url', { method: 'POST', body: { url: 'https://webtak.example.com' } });
+    await api('public-url', { method: 'POST', body: { url: 'https://takweb.example.com' } });
     let r = await fetch(base + '/api/access/register', { method: 'POST', headers: { 'Content-Type': 'application/json', Host: 'evil.example', 'X-Forwarded-Host': 'evil.example' },
       body: JSON.stringify({ name: 'Mail Test', email: 'mike@example.com', callsign: 'MIKE' }) }).then(async x => ({ status: x.status, data: await x.json() }));
     assert.equal(r.data.status, 'unconfirmed');

@@ -236,7 +236,7 @@ function showView(view) {
   document.dispatchEvent(new CustomEvent('admin-view', { detail: view }));
   if (location.hash.slice(1) !== view) history.replaceState(null, '', '#' + view);
   document.body.classList.remove('navopen');
-  try { localStorage.setItem('webtak.adminView', view); } catch (e) { /* private mode */ }
+  try { localStorage.setItem('takweb.adminView', view); } catch (e) { /* private mode */ }
 }
 for (const a of document.querySelectorAll('[data-nav]')) {
   a.addEventListener('click', e => { e.preventDefault(); showView(a.dataset.nav); });
@@ -247,7 +247,7 @@ function showApp() {
   $('authView').classList.add('hidden');
   $('appView').classList.remove('hidden');
   let view = location.hash.slice(1);
-  if (!view || view.startsWith('reset=')) { try { view = localStorage.getItem('webtak.adminView') || 'users'; } catch (e) { view = 'users'; } }
+  if (!view || view.startsWith('reset=')) { try { view = localStorage.getItem('takweb.adminView') || 'users'; } catch (e) { view = 'users'; } }
   document.body.classList.toggle('helper', isHelper());
   showView(view);
   $('noFfmpeg').classList.toggle('hidden', !!me.ffmpeg);
@@ -305,8 +305,8 @@ function beep() {
 }
 
 // settings per browser (sound, desktop, popup)
-const notePref = (k, d) => { try { const v = localStorage.getItem('webtak.note.' + k); return v == null ? d : v === '1'; } catch (e) { return d; } };
-const setNotePref = (k, on) => { try { localStorage.setItem('webtak.note.' + k, on ? '1' : '0'); } catch (e) { /* private mode */ } };
+const notePref = (k, d) => { try { const v = localStorage.getItem('takweb.note.' + k); return v == null ? d : v === '1'; } catch (e) { return d; } };
+const setNotePref = (k, on) => { try { localStorage.setItem('takweb.note.' + k, on ? '1' : '0'); } catch (e) { /* private mode */ } };
 const notes = []; // { ev, read }
 const NOTE_ICON = { takreg: '👤', register: '📱', camera: '🎥', live: '🔴', stop: '⏹' };
 
