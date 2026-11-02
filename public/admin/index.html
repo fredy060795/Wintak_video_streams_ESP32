@@ -94,6 +94,7 @@
     <a href="#teams" data-nav="teams" class="admin-only"><span class="ic">⬢</span>Teams &amp; visibility</a>
     <a href="#links" data-nav="links"><span class="ic">🔗</span>Links &amp; QR codes</a>
     <a href="#mapclear" data-nav="mapclear" class="admin-only"><span class="ic">🧹</span>Clear map (all devices)</a>
+    <a href="/hq/" target="_blank" rel="noopener" class="admin-only"><span class="ic">▣</span>HQ (opens a new window)</a>
     <a href="#tracks" data-nav="tracks" class="admin-only"><span class="ic">◷</span>Mission tracks &amp; replay <span class="badge nb live" id="navRec"></span></a>
     <div class="side-h">TAK server</div>
     <a href="#otsusers" data-nav="otsusers"><span class="ic">🪪</span>OTS users</a>
@@ -407,13 +408,30 @@
     </section>
 
     <section class="card" data-view="tracks">
-      <div class="row between"><h2>Mission tracks <span class="mut small">(record every user's position, replay afterwards)</span></h2><button id="trReload" type="button">⟳</button></div>
-      <p class="mut small">While a mission is recorded, TAKweb listens to your TAK server and keeps the position of <b>every</b> user –
-        ATAK, iTAK, WinTAK, TAKweb and Meshtastic users passed on by a gateway. Afterwards replay the mission on the map
-        (start/end, every user's track, speed up the time) or export it as GPX/KML (Google Earth replays KML with its time slider).</p>
-      <div class="row" id="trStartRow">
-        <div style="flex:1;min-width:220px"><label>Mission name</label><input id="trName" maxlength="80" placeholder="e.g. Exercise North – 2 Nov"></div>
-        <div class="actions-end"><button type="button" class="pri" id="trStart">● Start recording</button></div>
+      <div class="row between"><h2>Mission tracks <span class="mut small">(record positions and map objects, replay afterwards)</span></h2><button id="trReload" type="button">⟳</button></div>
+      <p class="mut small">During a mission TAKweb listens to your TAK server with its own OTS user (<code>takweb_recorder</code>, reads every
+        group) and keeps the position of every user – ATAK, iTAK, WinTAK, TAKweb and Meshtastic users passed on by a gateway –
+        and, if wanted, every marker, icon, drawing and route with each change. Start now or at a set time, end by hand or at
+        a set time; everybody, chosen groups or chosen users. Afterwards replay it on the map or export GPX/KML.</p>
+      <div class="tr-form" id="trStartRow">
+        <div class="row">
+          <div style="flex:1;min-width:240px"><label>Mission</label><input id="trName" maxlength="80" list="trOtsList" placeholder="New name – or choose a mission from OTS"><datalist id="trOtsList"></datalist></div>
+        </div>
+        <div class="row">
+          <div><label>Start</label><select id="trStartMode"><option value="now">Now</option><option value="at">At a set time</option></select></div>
+          <div class="hidden" id="trFromBox"><label>Start at</label><input type="datetime-local" id="trFrom"></div>
+          <div><label>End</label><select id="trEndMode"><option value="manual">When I stop it</option><option value="at">At a set time</option></select></div>
+          <div class="hidden" id="trToBox"><label>End at</label><input type="datetime-local" id="trTo"></div>
+          <div><label>Record</label><select id="trWho"><option value="all">Every user online</option><option value="groups">Chosen groups</option><option value="users">Chosen users</option></select></div>
+        </div>
+        <div class="hidden" id="trGroupsBox"><label>Groups (OTS)</label><div id="trGroups" class="mc-cats"></div></div>
+        <div class="hidden" id="trUsersBox">
+          <label>Users <span class="mut small" id="trPicked"></span></label>
+          <input id="trUserSearch" placeholder="Search callsign, user name or UID …">
+          <div id="trUserList" class="tr-pick"></div>
+        </div>
+        <label class="check"><input type="checkbox" id="trObjects" checked> also markers, icons, drawings and routes (with every change and deletion)</label>
+        <div class="row"><div class="actions-end"><button type="button" class="pri" id="trStart">● Start recording</button></div></div>
       </div>
       <div class="tr-live hidden" id="trLive">
         <span class="tr-dot"></span> <b id="trLiveName"></b> <span class="mut" id="trLiveInfo"></span>
@@ -421,7 +439,7 @@
       </div>
       <p class="mut small" id="trSource"></p>
       <p class="msg" id="trMsg"></p>
-      <div class="table-wrap"><table class="streams" id="trTable"><thead><tr><th>Mission</th><th>Start</th><th>End</th><th>Duration</th><th>Users</th><th>Points</th><th></th></tr></thead><tbody></tbody></table></div>
+      <div class="table-wrap"><table class="streams" id="trTable"><thead><tr><th>Mission</th><th>Status</th><th>Start</th><th>End</th><th>Records</th><th>Users</th><th>Points</th><th>Objects</th><th></th></tr></thead><tbody></tbody></table></div>
       <p class="mut small hidden" id="trEmpty">No missions recorded yet.</p>
 
       <div class="tr-replay hidden" id="trReplay">
@@ -441,6 +459,7 @@
         <input type="range" id="trTime" min="0" max="1000" value="0">
         <span class="tr-clock" id="trClock"></span>
         <label class="check small"><input type="checkbox" id="trTrail" checked> whole track</label>
+        <label class="check small"><input type="checkbox" id="trObj" checked> markers &amp; drawings</label>
       </div>
       </div>
     </section>
@@ -563,6 +582,7 @@
 <script src="federation.js"></script>
 <script src="mapclear.js"></script>
 <script src="/eud/vendor/leaflet.js"></script>
+<script src="/eud/vendor/milsymbol.js"></script>
 <script src="tracks.js"></script>
 </body>
 </html>

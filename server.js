@@ -26,13 +26,14 @@ const { StreamHub, normRotate, normFit, normFramesize } = require('./lib/streams
 const { sendMail, configured: smtpConfigured } = require('./lib/mailer');
 const tak = require('./lib/tak');
 const { TileCache } = require('./lib/tiles');
-const { TakUsers, TEAM_COLORS, ROLES, maskEmail } = require('./lib/takusers');
+const { TakUsers, TEAM_COLORS, ROLES, maskEmail, makePassword, ANON } = require('./lib/takusers');
 const { TakVideo } = require('./lib/takvideo');
 const { atakPackage } = require('./lib/datapackage');
 const { proxyMedia } = require('./lib/mediaproxy');
 const { KlvFeeds } = require('./lib/klvfeed');
 const { Federation } = require('./lib/federation');
-const { Tracks } = require('./lib/tracks');
+const { Tracks, stateOf } = require('./lib/tracks');
+const { Hq } = require('./lib/hq');
 const raster = require('./lib/raster');
 
 const config = {
@@ -706,7 +707,8 @@ function takPorts() {
 function otsMedia(req) {
   if (!takUsers.otsConfigured()) return null;
   const ip = clientIp(req);
-  if (![...takLinks.values()].some(l => l.ip === ip && l.state === 'connected')) return null;
+  const hqUser = !!auth.check(cookies(req).sid); // HQ pages (logged in to the admin)
+  if (!hqUser && ![...takLinks.values()].some(l => l.ip === ip && l.state === 'connected')) return null;
   let base;
   try { base = new URL(takUsers.t.ots.url); } catch (e) { return null; }
   return async (url, { fresh }) => {
@@ -803,74 +805,216 @@ async function fedLocalCert() {
   }
 }
 
-// ---------------- Mission tracks: record every user's position, replay afterwards ----------------
-// store.data.tracks = { certPem, keyPem, caPems, fingerprint (TAKweb's client certificate on the own TAK server), missions: [...] }
+// ---------------- Mission tracks: record positions and map objects, replay afterwards ----------------
+// store.data.tracks = { user: { username, password } (OTS user of the recorder, receives every group),
+//   certPem, keyPem, caPems, fingerprint (its client certificate), missions: [...] }
 const tracksData = () => store.data.tracks || (store.data.tracks = {});
-const tracks = new Tracks({ dir: path.join(config.dataDir, 'tracks'), data: tracksData, save: () => store.save(), log });
+// who is recorded: OTS devices (uid -> username, callsign) and the groups of each user, refreshed while recording
+const who = { euds: new Map(), groups: new Map(), at: 0, busy: null };
+async function whoRefresh(force = false) {
+  if (who.busy) return who.busy;
+  if (!force && Date.now() - who.at < 30000) return null;
+  who.busy = (async () => {
+    try {
+      const ots = takUsers.ots();
+      const euds = await ots.allEuds();
+      who.euds = new Map(euds.filter(e => e.uid).map(e => [e.uid, { username: e.username || '', callsign: e.callsign || '' }]));
+      const m = tracks.active();
+      if (m && m.who.mode === 'groups') {
+        const names = [...new Set([...who.euds.values()].map(e => e.username).filter(Boolean))];
+        for (const n of names) who.groups.set(n, (await ots.userGroups(n)).map(g => g.group));
+      }
+      who.at = Date.now();
+    } catch (e) { log('Mission tracks: devices from OTS – ' + e.message); who.at = Date.now(); } finally { who.busy = null; }
+  })();
+  return who.busy;
+}
+function trackAccept(m, uid, callsign) {
+  const w = m.who || { mode: 'all' };
+  if (w.mode === 'all') return true;
+  const e = who.euds.get(uid);
+  if (!e) whoRefresh(); // a device OTS did not know yet: asked again (the next position counts)
+  if (w.mode === 'users') {
+    const ids = [uid, e && e.username, e && e.callsign, callsign].filter(Boolean).map(s => s.toLowerCase());
+    return w.users.some(u => ids.includes(String(u).toLowerCase()));
+  }
+  const groups = (e && who.groups.get(e.username)) || [];
+  return groups.some(g => w.groups.includes(g));
+}
+// HQ pages: live picture, geofences, warnings, situation log (lib/hq.js)
+const hq = new Hq({ data: () => store.data.hq || (store.data.hq = {}), save: () => store.save(), log });
+setInterval(() => hq.sweep(), 60000).unref();
+const tracks = new Tracks({
+  dir: path.join(config.dataDir, 'tracks'), data: tracksData, save: () => store.save(), log, accept: trackAccept,
+  onChange: () => recApply().catch(e => log('Mission tracks: ' + e.message)),
+});
 let recLink = null;
 const recState = { state: 'off', message: '' };
-// while a mission is recorded: connected to the own TAK server as a silent client (receives every position)
+const recUid = () => 'TAKWEB-REC-' + fedConfig().id;
+// OTS delivers to a client only what its user's groups may read: the recorder has its own OTS user that reads every group
+async function recUser() {
+  const d = tracksData(), ots = takUsers.ots();
+  if (!d.user) { d.user = { username: 'takweb_recorder', password: makePassword() }; store.save(); }
+  if (!(await ots.userExists(d.user.username))) {
+    await ots.addUser(d.user.username, d.user.password, ['user']);
+    d.certPem = ''; // a new user needs a new certificate
+  }
+  const groups = new Set((await ots.allGroups()).map(g => g.name).filter(Boolean));
+  groups.add(ANON);
+  await ots.syncGroups(d.user.username, [...groups].map(group => ({ group, direction: 'OUT' })), '', []);
+  return d.user;
+}
+// for the HQ pages and while a mission is recorded: connected to the own TAK server, receives every position and object
 async function recApply() {
-  const want = !!tracks.active() && takUsers.otsConfigured();
+  const want = (!!tracks.active() || hq.enabled()) && takUsers.otsConfigured();
   if (!want) {
-    if (recLink) { recLink.closed = true; clearTimeout(recLink.timer); if (recLink.sock) recLink.sock.destroy(); recLink = null; }
+    if (recLink) { recLink.stop(); recLink = null; }
     Object.assign(recState, { state: 'off', message: tracks.active() ? 'OpenTAKServer is not set up – nothing is recorded.' : '' });
     return recState.message;
   }
   if (recLink) return '';
-  const d = tracksData(), l = fedLocal(), o = takUsers.t.ots;
-  if (!d.certPem) {
-    const req = { host: l.altHost || l.host, port: l.enrollPort, username: o.username, password: o.password, uid: 'TAKWEB-REC-' + fedConfig().id, caPems: d.caPems || [] };
-    try {
+  const d = tracksData(), l = fedLocal();
+  try {
+    const u = await recUser();
+    if (!d.certPem) {
+      const req = { host: l.altHost || l.host, port: l.enrollPort, username: u.username, password: u.password, uid: recUid(), caPems: d.caPems || [] };
       let r;
-      try { r = await tak.enroll(req); } catch (e) { if (e.code !== 'UNTRUSTED') throw e; d.fingerprint = e.fingerprint; r = await tak.enroll({ ...req, fingerprint: e.fingerprint }); }
+      try { r = await tak.enroll(req); } catch (e) {
+        if (e.code === 'UNTRUSTED') { d.fingerprint = e.fingerprint; r = await tak.enroll({ ...req, fingerprint: e.fingerprint }); } else if (/401|403|password|credentials/i.test(e.message)) {
+          await takUsers.ots().resetPassword(u.username, u.password); // the OTS user exists, but with another password
+          r = await tak.enroll(req);
+        } else throw e;
+      }
       Object.assign(d, { certPem: r.certPem, keyPem: r.keyPem, caPems: r.caPems || [] });
       store.save();
-    } catch (e) {
-      Object.assign(recState, { state: 'error', message: 'Certificate request at the TAK server failed – ' + e.message });
-      return recState.message;
     }
+  } catch (e) {
+    Object.assign(recState, { state: 'error', message: 'Recorder at the TAK server not ready – ' + e.message });
+    return recState.message;
   }
+  if (recLink || !(tracks.active() || hq.enabled())) return '';
+  whoRefresh(true);
   recLink = new tak.TakLink({
     host: l.host, altHost: l.altHost, port: l.port, proto: 'ssl', certPem: d.certPem, keyPem: d.keyPem, caPems: d.caPems, fingerprint: d.fingerprint || '',
-    uid: 'TAKWEB-REC-' + fedConfig().id,
-    onStatus: (state, message) => { if (recState.state !== state) log(`Mission tracks: ${message || state}`); Object.assign(recState, { state, message: message || '' }); },
-    onCot: xml => tracks.cot(xml),
+    uid: recUid(), hello: 'TAKweb HQ',
+    onStatus: (state, message) => {
+      if (recState.state !== state) log(`TAK server (HQ/tracks): ${message || state}`);
+      if (state === 'connected') hq.connected();
+      Object.assign(recState, { state, message: message || '' });
+      if (/rejected the client certificate/.test(message || '')) { d.certPem = ''; store.save(); } // e.g. revoked: a new one next time
+    },
+    onCot: xml => { tracks.cot(xml); hq.cot(xml); },
   });
   recLink.start();
   return '';
 }
-const missionSummary = m => ({ id: m.id, name: m.name, start: m.start, end: m.end, points: m.points, users: Object.keys(m.users).length });
+setInterval(() => { const m = tracks.active(); if (m && m.who.mode !== 'all') whoRefresh(true); }, 120000).unref();
+
+const missionSummary = m => ({
+  id: m.id, name: m.name, otsMission: m.otsMission || '', state: stateOf(m), from: m.from || null, to: m.to || null, start: m.start || null, end: m.end || null,
+  who: m.who || { mode: 'all', groups: [], users: [] }, objects: m.objects !== false, missed: !!m.missed,
+  points: m.points || 0, objectCount: m.objectCount || 0, users: Object.keys(m.users || {}).length,
+});
 function tracksView() {
   return { available: takUsers.otsConfigured(), source: { ...recState }, missions: tracks.missions().map(missionSummary) };
 }
 async function handleTracks(req, res, route, method) {
   if (route === '' && method === 'GET') return json(res, 200, tracksView());
+  // choices for a new mission: OTS missions (Data Sync), groups and devices
+  if (route === 'options' && method === 'GET') {
+    if (!takUsers.otsConfigured()) return json(res, 200, { missions: [], groups: [], euds: [] });
+    const ots = takUsers.ots();
+    const safe = p => p.catch(() => []);
+    const [missions, groups, euds] = await Promise.all([safe(ots.missions()), safe(ots.allGroups()), safe(ots.allEuds())]);
+    return json(res, 200, {
+      missions: missions.map(x => x.name).filter(Boolean).sort(),
+      groups: groups.map(g => g.name).filter(n => n && n !== ANON).sort(),
+      euds: euds.filter(e => e.uid && !/^TAKWEB-/.test(e.uid)).map(e => ({ uid: e.uid, callsign: e.callsign || '', username: e.username || '', lastSeen: e.last_event_time || null }))
+        .sort((a, b) => a.callsign.localeCompare(b.callsign)),
+    });
+  }
   if (route === '' && method === 'POST') {
     if (!takUsers.otsConfigured()) return json(res, 400, { error: 'Set up OpenTAKServer first (OpenTAKServer & registration) – the positions come from there.' });
     const body = await readJson(req);
-    try { tracks.start(body.name); } catch (e) { return json(res, 409, { error: e.message }); }
+    try { tracks.create(body); } catch (e) { return json(res, 409, { error: e.message }); }
     const warning = await recApply();
     return json(res, 200, { ...tracksView(), warning });
   }
-  const m = /^([a-f0-9]{12})(?:\/(stop|points|export\.gpx|export\.kml))?$/.exec(route);
+  const m = /^([a-f0-9]{12})(?:\/(stop|start|points|objects|export\.gpx|export\.kml))?$/.exec(route);
   const mission = m && tracks.get(m[1]);
   if (!mission) return json(res, 404, { error: 'Mission not found.' });
-  if (!m[2] && method === 'GET') return json(res, 200, { mission });
-  if (!m[2] && method === 'POST') { tracks.rename(mission.id, (await readJson(req)).name); return json(res, 200, tracksView()); }
+  if (!m[2] && method === 'GET') return json(res, 200, { mission: missionSummary(mission) });
+  if (!m[2] && method === 'POST') {
+    try { tracks.edit(mission.id, await readJson(req)); } catch (e) { return json(res, 400, { error: e.message }); }
+    return json(res, 200, tracksView());
+  }
   if (!m[2] && method === 'DELETE') { tracks.remove(mission.id); await recApply(); log('Mission deleted:', mission.name); return json(res, 200, tracksView()); }
-  if (m[2] === 'stop' && method === 'POST') { if (!mission.end) tracks.stop(); await recApply(); return json(res, 200, tracksView()); }
+  if (m[2] === 'stop' && method === 'POST') { if (stateOf(mission) === 'recording') tracks.stop(); return json(res, 200, tracksView()); }
+  if (m[2] === 'start' && method === 'POST') {
+    try { tracks.startNow(mission.id); } catch (e) { return json(res, 409, { error: e.message }); }
+    const warning = await recApply();
+    return json(res, 200, { ...tracksView(), warning });
+  }
   if (m[2] === 'points' && method === 'GET') {
     const users = {};
     for (const [uid, u] of Object.entries(mission.users)) users[uid] = { callsign: u.callsign, team: u.team, role: u.role, first: u.first, last: u.last, points: u.points, meters: u.meters };
     return json(res, 200, { mission: missionSummary(mission), users, points: tracks.points(mission.id) });
   }
+  if (m[2] === 'objects' && method === 'GET') return json(res, 200, { objects: tracks.objects(mission.id) });
   if (m[2] && m[2].startsWith('export') && method === 'GET') {
     const kml = m[2].endsWith('kml');
     const name = (mission.name.replace(/[^\w.-]+/g, '_') || 'mission') + (kml ? '.kml' : '.gpx');
     res.writeHead(200, { 'Content-Type': kml ? 'application/vnd.google-earth.kml+xml' : 'application/gpx+xml', 'Content-Disposition': `attachment; filename="${name}"` });
     return res.end(kml ? tracks.kml(mission.id) : tracks.gpx(mission.id));
   }
+  return json(res, 404, { error: 'Not found' });
+}
+
+// ---------------- HQ pages ----------------
+// video sources for the video wall: feeds of the TAK server (MediaMTX), TAKweb camera streams, videos in CoT (drones …)
+async function hqFeeds(req) {
+  const out = [];
+  if (takUsers.otsConfigured()) {
+    try {
+      const base = new URL(takUsers.t.ots.url);
+      for (const f of await takUsers.ots().videoStreams()) out.push({ name: f.path, kind: 'TAK server', url: new URL('/hls/' + f.path + '/index.m3u8', base).href });
+    } catch (e) { /* OTS not reachable */ }
+  }
+  for (const e of Object.values(store.data.streams || {})) {
+    if (!hub.live(StreamHub.id(e.user, e.streamId))) continue;
+    out.push({ name: e.label || `${e.user}/${e.streamId}`, kind: 'Camera', url: links(req, e).stream, mjpeg: true });
+  }
+  const seen = new Set(out.map(x => x.url));
+  const st = hq.state(Infinity);
+  for (const x of [...st.devices, ...st.objects]) if (x.video && !seen.has(x.video)) { seen.add(x.video); out.push({ name: x.callsign || x.uid, kind: /UAS|drone/i.test(x.uid + x.callsign) || /^a-.-A/.test(x.type) ? 'Drone' : 'Video', url: x.video }); }
+  return out;
+}
+async function handleHq(req, res, route, method) {
+  if (route === 'state' && method === 'GET') {
+    const since = Number(new URL(req.url, 'http://x').searchParams.get('since')) || 0;
+    return json(res, 200, { ...hq.state(since), source: { ...recState, available: takUsers.otsConfigured() }, recording: (() => { const m = tracks.active(); return m ? { id: m.id, name: m.name, start: m.start } : null; })() });
+  }
+  if (route === 'feeds' && method === 'GET') return json(res, 200, { feeds: await hqFeeds(req) });
+  if (route === 'log.csv' && method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="situation-log.csv"' });
+    return res.end('\ufeff' + hq.csv());
+  }
+  const body = method === 'POST' ? await readJson(req) : {};
+  try {
+    if (route === 'log' && method === 'POST') { hq.addLog(body); store.save(); return json(res, 200, { ok: true }); }
+    const lm = /^log\/([a-f0-9]{10})$/.exec(route);
+    if (lm && method === 'DELETE') { hq.removeLog(lm[1]); return json(res, 200, { ok: true }); }
+    if (route === 'units' && method === 'POST') { const units = hq.setUnits(body.units); store.save(); return json(res, 200, { units }); }
+    const um = /^units\/([a-f0-9]{10})\/status$/.exec(route);
+    if (um && method === 'POST') { hq.setUnitStatus(um[1], String(body.status || '')); store.save(); return json(res, 200, { ok: true }); }
+    if (route === 'fences' && method === 'POST') { const fences = hq.setFences(body.fences); store.save(); return json(res, 200, { fences }); }
+    if (route === 'settings' && method === 'POST') {
+      hq.d().enabled = body.enabled !== false;
+      store.save();
+      const warning = await recApply();
+      return json(res, 200, { ok: true, warning });
+    }
+  } catch (e) { return json(res, 400, { error: e.message }); }
   return json(res, 404, { error: 'Not found' });
 }
 
@@ -1212,6 +1356,7 @@ async function handleAdminApi(req, res, route) {
   if (route.startsWith('ots/')) return await handleOtsAdmin(req, res, route.slice(4));
   if (route === 'federation' || route.startsWith('federation/')) return await handleFederation(req, res, route.slice(11), method);
   if (route === 'tracks' || route.startsWith('tracks/')) return await handleTracks(req, res, route.slice(7), method);
+  if (route === 'hq' || route.startsWith('hq/')) return await handleHq(req, res, route.slice(3).replace(/^\//, ''), method);
   if (route === 'takvideo' && method === 'GET') return json(res, 200, takVideo.state());
   if (route === 'takvideo/settings' && method === 'POST') { takVideo.setSettings(await readJson(req)); return json(res, 200, takVideo.state()); }
   if (route === 'takvideo/sync' && method === 'POST') { const r = await takVideo.syncAll(); return json(res, 200, { ...r, ...takVideo.state() }); }
@@ -1508,6 +1653,11 @@ async function handle(req, res) {
       if (!admin) return send(res, 404, 'Not found');
       return serveStatic(res, 'admin', decodeURIComponent(p.slice(7)));
     }
+    if (p === '/hq') return send(res, 302, '', 'text/plain', { Location: '/hq/' });
+    if (p.startsWith('/hq/')) {
+      if (!admin) return send(res, 404, 'Not found');
+      return serveStatic(res, 'hq', decodeURIComponent(p.slice(4)));
+    }
     if (p.startsWith('/api/admin/')) {
       if (!admin) return json(res, 404, { error: 'Not found' });
       return await handleAdminApi(req, res, p.slice(11));
@@ -1772,7 +1922,7 @@ function shutdown() {
   log('Server shutting down');
   hub.shutdown();
   federation.stop();
-  if (recLink) { recLink.closed = true; clearTimeout(recLink.timer); if (recLink.sock) recLink.sock.destroy(); }
+  if (recLink) recLink.stop();
   if (tracks.active()) try { store.save(); } catch (e) { /* data folder gone */ } // summary of a running recording
   klvFeeds.close();
   for (const c of wss.clients) c.close(1001, 'server shutdown');

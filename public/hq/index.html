@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>TAKweb HQ</title>
+<link rel="icon" href="/assets/brand/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/favicon-32.png">
+<meta name="theme-color" content="#0b0e12">
+<link rel="stylesheet" href="/eud/vendor/leaflet.css">
+<link rel="stylesheet" href="hq.css?v=__TAKWEB_VERSION__">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/admin/" title="Back to the admin"><img src="/assets/brand/takweb-logo-160.png" alt=""><b>TAKweb</b> <span>HQ</span></a>
+  <nav id="nav">
+    <a href="#overview" data-page="overview">Situation</a>
+    <a href="#troops" data-page="troops">Troops</a>
+    <a href="#fences" data-page="fences">Geofence</a>
+    <a href="#log" data-page="log">Situation log</a>
+    <a href="#video" data-page="video">Video wall</a>
+    <a href="#events" data-page="events">Events</a>
+  </nav>
+  <div class="status">
+    <span id="srcState" class="pill">…</span>
+    <span id="recState" class="pill rec hidden">● REC</span>
+    <span id="clock" class="clock"></span>
+    <button type="button" id="btnWin" title="Open this page in a new window (for another monitor)">⧉</button>
+    <button type="button" id="btnFull" title="Full screen">⛶</button>
+  </div>
+</header>
+
+<main>
+  <!-- Situation: map + counters + events -->
+  <section class="page" data-page="overview">
+    <div class="split">
+      <div id="mapOverview" class="map"></div>
+      <aside class="side">
+        <div class="filters" id="ovFilters"></div>
+        <div class="counts" id="ovCounts"></div>
+        <h3>Latest events</h3>
+        <ul class="events" id="ovEvents"></ul>
+      </aside>
+    </div>
+  </section>
+
+  <!-- Troops: everybody with status, filterable -->
+  <section class="page" data-page="troops">
+    <div class="bar">
+      <input id="trSearch" placeholder="Search callsign …">
+      <select id="trTeam"><option value="">All teams</option></select>
+      <label class="check"><input type="checkbox" id="trOnline"> online only</label>
+      <span class="mut" id="trCount"></span>
+    </div>
+    <div class="filters" id="trFilters"></div>
+    <div class="table-wrap"><table class="grid" id="trTable"><thead><tr>
+      <th>Callsign</th><th>Team</th><th>Role</th><th>Status</th><th>Last seen</th><th>Area</th><th>Speed</th><th>Battery</th><th>Device</th><th></th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <!-- Geofence -->
+  <section class="page" data-page="fences">
+    <div class="split">
+      <div id="mapFences" class="map"></div>
+      <aside class="side">
+        <p class="mut small">Draw an area: <b>Circle</b> – click the centre, then the edge. <b>Polygon</b> – click the corners, finish with a double click.
+          Mark the <b>base</b>: leaving it is logged as departure, coming back as arrival (situation log).</p>
+        <div class="row"><button type="button" id="fcCircle">◯ Circle</button><button type="button" id="fcPoly">⬠ Polygon</button><button type="button" id="fcCancel" class="hidden">Cancel</button></div>
+        <div id="fcList"></div>
+        <button type="button" class="pri" id="fcSave">Save areas</button>
+        <p class="msg" id="fcMsg"></p>
+        <h3>Departures &amp; arrivals</h3>
+        <ul class="events" id="fcEvents"></ul>
+      </aside>
+    </div>
+  </section>
+
+  <!-- Situation log (TSL) -->
+  <section class="page" data-page="log">
+    <div class="split log">
+      <aside class="side units">
+        <h3>Units <span class="mut small">(troop list)</span></h3>
+        <div id="unitList"></div>
+        <details class="unit-add"><summary>＋ Add / edit units</summary>
+          <p class="mut small">One unit per line: <code>Name; kind; strength; TAK callsigns (comma)</code></p>
+          <textarea id="unitText" rows="8" placeholder="Alpha; Squad; 8; ALPHA 1, ALPHA 2&#10;Bravo; Squad; 6; BRAVO 1&#10;Medic team; Medical; 2"></textarea>
+          <button type="button" class="pri" id="unitSave">Save units</button>
+        </details>
+      </aside>
+      <div class="logmain">
+        <form class="entry" id="logForm" autocomplete="off">
+          <select id="lgFrom"></select>
+          <select id="lgTo"></select>
+          <select id="lgKind"></select>
+          <input id="lgText" placeholder="Content – Enter to log" maxlength="2000">
+          <button type="submit" class="pri">Log</button>
+          <button type="button" id="lgMed" title="Medical report (MIST)">✚ Medical</button>
+          <a class="btn" id="lgCsv" href="/api/admin/hq/log.csv">CSV</a>
+        </form>
+        <form class="med hidden" id="medForm" autocomplete="off">
+          <select id="mdPrio"><option value="">Priority …</option><option>Immediate</option><option>Urgent</option><option>Priority</option><option>Routine</option></select>
+          <input id="mdM" placeholder="M – mechanism of injury">
+          <input id="mdI" placeholder="I – injuries">
+          <input id="mdS" placeholder="S – signs (AVPU, breathing, pulse, bleeding)">
+          <input id="mdT" placeholder="T – treatment given">
+          <button type="submit" class="pri">Log medical report</button>
+        </form>
+        <p class="msg" id="lgMsg"></p>
+        <div class="table-wrap"><table class="grid" id="logTable"><thead><tr><th>#</th><th>Time</th><th>From</th><th>To</th><th>Kind</th><th>Content</th><th></th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Video wall -->
+  <section class="page" data-page="video">
+    <div class="bar">
+      <select id="vwLayout"><option value="1">1</option><option value="4" selected>2 × 2</option><option value="9">3 × 3</option></select>
+      <button type="button" id="vwReload">⟳ Sources</button>
+      <span class="mut small">Choose a source in each tile. Drone feeds, TAK server feeds and TAKweb cameras.</span>
+    </div>
+    <div class="wall" id="wall"></div>
+  </section>
+
+  <!-- Events -->
+  <section class="page" data-page="events">
+    <div class="bar">
+      <select id="evKind"><option value="">All events</option><option value="hostile">Hostile</option><option value="fence">Geofence</option><option value="log">Situation log</option></select>
+    </div>
+    <ul class="events big" id="evList"></ul>
+  </section>
+</main>
+
+<!-- warning: new hostile marker -->
+<div class="alert hidden" id="alert">
+  <div class="alert-box">
+    <div class="alert-head">⚠ HOSTILE</div>
+    <div class="alert-text" id="alertText"></div>
+    <div class="mut small" id="alertTime"></div>
+    <div class="row"><button type="button" class="pri" id="alertShow">Show on map</button><button type="button" id="alertOk">Acknowledge</button></div>
+  </div>
+</div>
+<div class="toasts" id="toasts"></div>
+
+<script src="/eud/vendor/leaflet.js"></script>
+<script src="/eud/vendor/milsymbol.js"></script>
+<script src="/eud/vendor/hls.min.js"></script>
+<script src="hq.js?v=__TAKWEB_VERSION__"></script>
+</body>
+</html>
