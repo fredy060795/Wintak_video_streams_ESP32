@@ -1147,7 +1147,6 @@ async function handleEudApi(req, res, route) {
     fs.writeFileSync(path.join(VOICEMSG_DIR, id + '.wav'), data);
     return json(res, 200, { id, url: publicBase(req) + '/voicemsg/' + id + '.wav' });
   }
-  // video feeds (HLS) through our own server so the browser may play them
   // TAKweb for the flash of a Meshtastic radio (lib/meshsite.js, public/eud/meshinstall.js): list and files (gzipped)
   if (route === 'meshsite' && req.method === 'GET') {
     const b = meshsite.build(VERSION);
@@ -1169,6 +1168,7 @@ async function handleEudApi(req, res, route) {
     res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Length': f.gz.length, 'Cache-Control': 'no-cache' });
     return res.end(f.gz);
   }
+  // video feeds (HLS) through our own server so the browser may play them
   if (route === 'media' && req.method === 'GET') {
     return proxyMedia(req, res, { allowed: host => tak.targetAllowed(takSettings().allowedHosts, host), log, mapUpstream: otsMedia(req) });
   }
