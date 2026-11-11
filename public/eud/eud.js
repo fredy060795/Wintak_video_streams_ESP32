@@ -78,11 +78,21 @@ const SOURCES = {
 // map sources from the TAK server's device profile (ATAK customMapSource): straight from their tile server
 for (const m of store.get('eud.takMaps', [])) SOURCES[m.id] = { name: m.name + ' (TAK server)', maxZoom: m.maxZoom || 19, attribution: '', url: m.url };
 const TILE_BASE = new URL('tiles/', location.href).pathname; // /eud/tiles/
+// TAKweb loaded from a Meshtastic radio's flash (lib/meshsite.js): no TAKweb server – mesh only, map tiles straight from
+// the internet if the phone has any, otherwise a coordinate grid
+const MESH_ONLY = !!window.TAKWEB_MESH;
+const PUBLIC_TILES = {
+  osm: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', topo: 'https://tile.opentopomap.org/{z}/{x}/{y}.png',
+  sat: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  esritopo: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+};
+if (MESH_ONLY) document.body.classList.add('mesh-only');
 if (!SOURCES[profile.tiles] && profile.tiles !== 'custom') profile.tiles = 'osm';
 
 function sourceTemplate(id) {
   if (id === 'custom') return profile.customUrl || '';
   if (SOURCES[id] && SOURCES[id].url) return SOURCES[id].url;
+  if (MESH_ONLY && PUBLIC_TILES[id]) return PUBLIC_TILES[id];
   return TILE_BASE + id + '/{z}/{x}/{y}.png';
 }
 function sourceMaxZoom(id) { return id === 'custom' ? 20 : SOURCES[id].maxZoom; }
@@ -166,7 +176,7 @@ function setTiles(id) {
   // tile not loaded (e.g. briefly no network): reload once instead of a half-empty map
   baseLayer.on('tileerror', e => {
     const img = e.tile;
-    if (img.dataset.retry) return;
+    if (MESH_ONLY || img.dataset.retry) return; // on the radio: usually no internet – no retries
     img.dataset.retry = '1';
     setTimeout(() => { img.src = img.src.replace(/([?&])r=\d+|$/, m => (m ? m[0] : (img.src.includes('?') ? '&' : '?')) + 'r=' + Date.now()); }, 1500);
   });
@@ -176,6 +186,32 @@ function setTiles(id) {
   if (window.view3d) view3d.baseChanged();
 }
 setTiles(profile.tiles);
+// coordinate grid: on the radio (no map without internet) – lines every 0.001° … 10° depending on the zoom, with labels
+if (MESH_ONLY) {
+  const Grid = L.GridLayer.extend({
+    createTile(coords) {
+      const t = document.createElement('canvas');
+      const size = this.getTileSize();
+      t.width = size.x; t.height = size.y;
+      const ctx = t.getContext('2d');
+      const nw = map.unproject(coords.scaleBy(size), coords.z), se = map.unproject(coords.scaleBy(size).add(size), coords.z);
+      const span = (se.lng - nw.lng) * 2;
+      const step = [10, 5, 1, 0.5, 0.1, 0.05, 0.01, 0.005, 0.001].find(s => s <= span) || 0.001;
+      ctx.strokeStyle = 'rgba(120,200,255,0.35)'; ctx.fillStyle = 'rgba(160,220,255,0.8)'; ctx.font = '10px sans-serif'; ctx.lineWidth = 1;
+      const px = ll => map.project(ll, coords.z).subtract(coords.scaleBy(size));
+      for (let lng = Math.ceil(nw.lng / step) * step; lng <= se.lng; lng += step) {
+        const x = Math.round(px(L.latLng(nw.lat, lng)).x) + 0.5;
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, size.y); ctx.stroke(); ctx.fillText(lng.toFixed(3), x + 2, size.y - 3);
+      }
+      for (let lat = Math.ceil(se.lat / step) * step; lat <= nw.lat; lat += step) {
+        const y = Math.round(px(L.latLng(lat, nw.lng)).y) + 0.5;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(size.x, y); ctx.stroke(); ctx.fillText(lat.toFixed(3), 2, y - 2);
+      }
+      return t;
+    },
+  });
+  new Grid({ zIndex: 2, pane: 'overlayPane' }).addTo(map);
+}
 map.on('moveend', () => { const c = map.getCenter(); store.set('eud.view', [c.lat, c.lng, map.getZoom()]); });
 const shapesLayer = L.layerGroup().addTo(map);
 const pointsLayer = L.layerGroup().addTo(map);
@@ -2596,7 +2632,7 @@ function updatePermBar() {
     return;
   }
   const parts = [geoDenied && 'location', !compassAllowed && 'compass', mic && 'microphone'].filter(Boolean);
-  $('permText').textContent = `Allow ${parts.join(', ').replace(/, ([^,]*)$/, ' and $1')} – ` + [geoDenied && 'your position is sent', !compassAllowed && 'your direction is shown', mic && 'VoIP and voice messages work right away'].filter(Boolean).join(', ') + '.';
+  $('permText').textContent = `Allow ${parts.join(', ').replace(/, ([^,]*)$/, ' and $1')} – ` + [geoDenied && 'your position is sent', !compassAllowed && 'your direction is shown', mic && (MESH_ONLY ? 'voice messages work right away' : 'VoIP and voice messages work right away')].filter(Boolean).join(', ') + '.';
   if (permAsked && geoDenied) $('permText').textContent += isIOS ? ' Still refused: Settings → Privacy → Location Services → Safari Websites (or Bluefy) → "While Using".'
     : ' Still refused: tap the lock icon next to the address → Permissions → Location.';
 }
@@ -2877,7 +2913,7 @@ L.control.scale({ metric: true, imperial: false, position: 'bottomleft', maxWidt
 // Start
 // ======================================================================
 
-if ('serviceWorker' in navigator) {
+if ('serviceWorker' in navigator && !MESH_ONLY) { // the radio has no service worker (and a self-signed certificate)
   navigator.serviceWorker.register('sw.js').catch(() => {});
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 }
@@ -2911,7 +2947,7 @@ updateStatus();
       const known = servers.find(s => s.host === cfg.host);
       if (!known || (cfg.username && cfg.password && (!known.certPem || known.username !== cfg.username))) { await applyConfig(cfg, true); handled = true; }
     } catch (e) { /* invalid */ }
-  } else if (!servers.length) {
+  } else if (!servers.length && !MESH_ONLY) {
     try {
       const r = await fetch('/api/eud/config').then(x => x.json());
       if (r.preset && r.preset.host) {
@@ -2923,7 +2959,7 @@ updateStatus();
   }
   if (!handled) {
     if (!profile.callsign) openPopup('me');
-    else if (!servers.length) openEdit(null);
+    else if (!servers.length && !MESH_ONLY) openEdit(null);
   }
   for (const srv of servers) if (srv.auto) openConn(srv);
   if (profile.wake) wakeLock();

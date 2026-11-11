@@ -371,6 +371,25 @@
       <div class="table-wrap"><table class="streams" id="ofTable"><thead><tr><th>Path</th><th>Origin</th><th>Source</th><th>For ATAK</th><th></th></tr></thead><tbody></tbody></table></div>
     </section>
     <section class="card" data-view="mesh">
+      <h2>TAKweb on a Meshtastic radio <span class="mut small">(ESP32: Heltec, T-Beam, XIAO ESP32-S3, LilyGo …)</span></h2>
+      <p class="mut small">Puts the TAKweb app onto the radio's flash. In the field the radio joins a phone's hotspot; the phone opens
+        <b>https://&lt;radio address&gt;</b> and has TAKweb – mesh only, no server, no internet, nothing installed before.
+        The radio must already run Meshtastic (flash it first, e.g. with the Meshtastic flasher). Connect it with a USB data cable;
+        Chrome or Edge on a PC. The old Meshtastic web app on the radio is replaced; the radio's settings stay.</p>
+      <div class="row">
+        <div class="grow"><label>Hotspot name (WLAN the radio joins)</label><input id="mfSsid" value="TAKweb" maxlength="32"></div>
+        <div class="grow"><label>Hotspot password (min. 8 characters, empty = open network)</label><input id="mfPsk" value="12345678" maxlength="63"></div>
+      </div>
+      <p class="mut small">iPhone: the hotspot has the phone's name (Settings → General → About → Name) and its password under
+        Settings → Personal Hotspot. Android: Settings → Network → Hotspot. While WLAN is on, the radio's Bluetooth is off; change
+        the WLAN again here over USB.</p>
+      <div class="row"><button type="button" class="pri" id="mfGo">⚡ Connect radio (USB) and install TAKweb</button><span class="mut small" id="mfSize"></span></div>
+      <div class="mf-bar hidden" id="mfBar"><div id="mfFill"></div></div>
+      <p class="msg" id="mfMsg"></p>
+      <pre class="mf-log hidden" id="mfLog"></pre>
+    </section>
+
+    <section class="card" data-view="mesh">
       <div class="row between"><h2>Meshtastic channels</h2><button id="omeReload" type="button">⟳</button></div>
       <form id="omeForm">
         <div class="row">
@@ -584,5 +603,8 @@
 <script src="/eud/vendor/leaflet.js"></script>
 <script src="/eud/vendor/milsymbol.js"></script>
 <script src="tracks.js"></script>
+<script src="/eud/meshproto.js"></script>
+<script src="/eud/meshinstall.js"></script>
+<script src="meshflash.js"></script>
 </body>
 </html>

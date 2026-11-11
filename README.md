@@ -477,6 +477,26 @@ reads every group):
 
 Planned next: APRS input for external GPS devices and a radio log (USB audio or SDR stick with speech-to-text).
 
+## TAKweb on a Meshtastic radio (no server, no internet)
+
+An ESP32 Meshtastic radio (Heltec, T-Beam, XIAO ESP32-S3, LilyGo …) can carry TAKweb itself: its firmware has a web server
+and offers the radio over HTTP. A phone that never had TAKweb – no internet, no server – joins the radio's WLAN, opens
+**https://&lt;radio address&gt;** and has the TAKweb app, mesh only: positions, markers, drawings, chat, voice messages over
+LoRa, Bloodhound, R&B … The map shows a coordinate grid (map tiles only if the phone has internet).
+
+**Put it on a radio:** Admin → **Meshtastic** → "TAKweb on a Meshtastic radio" (Chrome/Edge on a PC, radio with Meshtastic
+on USB): connect, and TAKweb is written onto the radio's flash over the normal Meshtastic connection (XModem; the old
+Meshtastic web app is removed, the radio's settings stay), checked, then the WLAN set and the radio restarted. 525 KB –
+fits radios with 4 MB flash. The package is also at `/api/eud/meshsite.zip` (for the Meshtastic desktop flasher).
+
+**WLAN:** the Meshtastic firmware cannot open its own WLAN – the radio joins one: the hotspot of a phone. Default
+**TAKweb** / **12345678** (WPA2 needs ≥ 8 characters; an empty password = open network). iPhone: the hotspot carries the
+phone's name (Settings → General → About → Name), the password is under Personal Hotspot. Android: Settings → Hotspot.
+The radio's address is on its display or in the hotspot's list of connected devices; accept its certificate once.
+While WLAN is on, the radio's Bluetooth is off (firmware) – change the WLAN again over USB.
+
+In TAKweb itself (from the server), Menu → Meshtastic → "Radio over WLAN" connects to such a radio by its address.
+
 ## Mission tracks (record & replay)
 
 Admin → **Mission tracks & replay**:

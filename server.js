@@ -28,7 +28,7 @@ const tak = require('./lib/tak');
 const { TileCache } = require('./lib/tiles');
 const { TakUsers, TEAM_COLORS, ROLES, maskEmail, makePassword, ANON } = require('./lib/takusers');
 const { TakVideo } = require('./lib/takvideo');
-const { atakPackage } = require('./lib/datapackage');
+const { atakPackage, zip } = require('./lib/datapackage');
 const { proxyMedia } = require('./lib/mediaproxy');
 const { KlvFeeds } = require('./lib/klvfeed');
 const { Federation } = require('./lib/federation');
@@ -36,6 +36,7 @@ const { Tracks, stateOf } = require('./lib/tracks');
 const { Hq } = require('./lib/hq');
 const { Voice } = require('./lib/voice');
 const raster = require('./lib/raster');
+const meshsite = require('./lib/meshsite');
 
 const config = {
   port: process.env.PORT ? Number(process.env.PORT) : 5036,
@@ -1147,6 +1148,27 @@ async function handleEudApi(req, res, route) {
     return json(res, 200, { id, url: publicBase(req) + '/voicemsg/' + id + '.wav' });
   }
   // video feeds (HLS) through our own server so the browser may play them
+  // TAKweb for the flash of a Meshtastic radio (lib/meshsite.js, public/eud/meshinstall.js): list and files (gzipped)
+  if (route === 'meshsite' && req.method === 'GET') {
+    const b = meshsite.build(VERSION);
+    return json(res, 200, { version: b.version, total: b.total, files: b.files.map(f => ({ name: f.name, size: f.size, gz: f.gz.length })) });
+  }
+  // the same as one ZIP (<name>.gz files) – for the Meshtastic desktop flasher, offline
+  if (route === 'meshsite.zip' && req.method === 'GET') {
+    const b = meshsite.build(VERSION);
+    const entries = Object.fromEntries(b.files.map(f => [f.name + '.gz', f.gz]));
+    entries['takweb-mesh.json'] = JSON.stringify({ version: b.version, files: b.files.map(f => f.name) });
+    const z = zip(entries);
+    res.writeHead(200, { 'Content-Type': 'application/zip', 'Content-Disposition': `attachment; filename="takweb-mesh-${b.version}.zip"`, 'Content-Length': z.length });
+    return res.end(z);
+  }
+  const msf = /^meshsite\/([\w.-]+)$/.exec(route);
+  if (msf && req.method === 'GET') {
+    const f = meshsite.build(VERSION).files.find(x => x.name === msf[1]);
+    if (!f) return json(res, 404, { error: 'Not found' });
+    res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Length': f.gz.length, 'Cache-Control': 'no-cache' });
+    return res.end(f.gz);
+  }
   if (route === 'media' && req.method === 'GET') {
     return proxyMedia(req, res, { allowed: host => tak.targetAllowed(takSettings().allowedHosts, host), log, mapUpstream: otsMedia(req) });
   }

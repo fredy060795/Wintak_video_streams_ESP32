@@ -472,3 +472,8 @@ a.mbtn { color: #fff; text-decoration: none; box-sizing: border-box; }
 .chat-foot.recording #chatIn { display: none; }
 .cm-audio { width: 100%; height: 36px; margin-top: 4px; }
 .cm-play { margin-top: 4px; padding: 6px 12px; background: #1d3150; border: 1px solid #4ea1ff; border-radius: 14px; color: #fff; font-size: 14px; }
+
+/* TAKweb loaded from a Meshtastic radio (mesh only): no server functions */
+body.mesh-only .tile[data-tb="server"], body.mesh-only .tile[data-tb="data"], body.mesh-only .tile[data-tb="overlays"],
+body.mesh-only .tile[data-tb="sync"], body.mesh-only .tile[data-tb="video"], body.mesh-only .tile[data-tb="voice"],
+body.mesh-only #btnVideo, body.mesh-only [data-tbtool="voice"], body.mesh-only [data-tbtool="video"], body.mesh-only #appBox { display: none !important; }

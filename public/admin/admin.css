@@ -222,3 +222,8 @@ table.kv td { padding: 4px 0; word-break: break-all; }
 .tr-plan { color: #d29922; font-weight: 600; font-size: 12px; }
 .tr-sym { background: none; border: 0; }
 .tr-sym svg { display: block; }
+
+/* TAKweb on a Meshtastic radio (meshflash.js) */
+.mf-bar { height: 10px; border: 1px solid var(--bd); border-radius: 5px; overflow: hidden; margin: 8px 0; }
+.mf-bar > div { height: 100%; width: 0; background: var(--acc); transition: width .2s; }
+.mf-log { max-height: 180px; overflow: auto; font-size: 12px; background: rgba(0, 0, 0, .25); padding: 8px; border-radius: 6px; }

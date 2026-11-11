@@ -189,8 +189,54 @@
     }
     if (has(f, 7)) return { kind: 'configComplete', id: u32(f, 7) };
     if (has(f, 8)) return { kind: 'rebooted' };
+    if (has(f, 12)) { const x = sub(f, 12); return { kind: 'xmodem', control: u32(x, 1), seq: u32(x, 2) }; }
+    if (has(f, 15)) { const x = sub(f, 15); return { kind: 'fileInfo', name: str(x, 1), size: u32(x, 2) }; }
+    if (has(f, 5)) { const c = bytes(f, 5); const cf = decode(c); return { kind: 'config', network: bytes(cf, 4) }; }
     return { kind: 'other' };
   }
+
+  // ---------------- Files on the radio (XModem over the client API) and settings ----------------
+  // Used to put TAKweb onto a radio's flash (its web server then serves it over WLAN).
+  const XMODEM = { NUL: 0, SOH: 1, STX: 2, EOT: 4, ACK: 6, NAK: 21, CAN: 24 };
+  // CRC-16/CCITT exactly like the firmware (xmodem.cpp)
+  function crc16(buf) {
+    let c = 0;
+    for (const b of buf) {
+      c = ((c >> 8) & 0xff) | ((c << 8) & 0xffff);
+      c ^= b;
+      c ^= (c & 0xff) >> 4;
+      c ^= (c << 12) & 0xffff;
+      c ^= ((c & 0xff) << 5) & 0xffff;
+    }
+    return c & 0xffff;
+  }
+  function toRadioXmodem({ control, seq = 0, buffer = null }) {
+    const x = new Writer().uint(1, control).uint(2, seq);
+    if (buffer) x.uint(3, crc16(buffer)).bytes(4, buffer, true);
+    return new Writer().msg(5, x).done();
+  }
+  // a protobuf message again, without some fields (unknown fields stay as they are)
+  function withoutFields(buf, drop) {
+    const w = new Writer();
+    for (const [field, list] of decode(buf || new Uint8Array(0))) {
+      if (drop.includes(field)) continue;
+      for (const { wt, v } of list) {
+        w.tag(field, wt);
+        if (wt === 0) w.varint(v);
+        else if (wt === 2) { w.varint(v.length); for (const x of v) w.b.push(x); }
+        else for (const x of v) w.b.push(x);
+      }
+    }
+    return w;
+  }
+  const PORT_ADMIN = 6;
+  const adminPacket = (node, admin) => toRadioPacket({ to: node, portnum: PORT_ADMIN, payload: admin.done(), id: 1 + Math.floor(Math.random() * 0xfffffff0), hopLimit: 0 });
+  // WLAN of the radio on (client of e.g. a phone hotspot), the other network settings stay
+  function adminSetWifi(node, networkRaw, { ssid, psk, enabled = true }) {
+    const net = withoutFields(networkRaw, [1, 3, 4]).bool(1, enabled).str(3, ssid).str(4, psk);
+    return adminPacket(node, new Writer().msg(34, new Writer().msg(4, net)));
+  }
+  const adminReboot = (node, seconds = 2) => adminPacket(node, new Writer().int(97, seconds));
 
   const parseUserPayload = buf => parseUser(decode(buf));
   const parsePositionPayload = buf => parsePosition(decode(buf));
@@ -454,6 +500,7 @@
   }
 
   return {
+    XMODEM, crc16, toRadioXmodem, adminSetWifi, adminReboot, withoutFields,
     voicePackets, voiceRequest, parseVoice, VoiceAssembler, VOICE_CHUNK,
     PORT, BROADCAST, ALL_CHAT, TEAMS, ROLES, FOUNTAIN, Writer, decode,
     wantConfig, toRadioPacket, takPli, takChat, parseTak, parseFromRadio, parseUserPayload, parsePositionPayload,
