@@ -394,6 +394,19 @@
           <input id="meshChanUrl" class="in" placeholder="https://meshtastic.org/e/#…" autocomplete="off" autocapitalize="off" spellcheck="false">
           <button type="button" class="mbtn pri" id="meshChanGo">APPLY CHANNEL</button>
         </details>
+        <!-- TAKweb firmware: besides its own WLAN the radio can join a WLAN with internet (e.g. the phone's hotspot) -->
+        <details class="hidden" id="meshNet"><summary>Internet over WLAN (e.g. phone hotspot)</summary>
+          <p class="hint" id="meshNetState"></p>
+          <p class="hint">The radio keeps its own WLAN "TAKweb" and also joins this WLAN – then it has internet (time, MQTT).
+            With the phone's own hotspot: the phone reaches the radio there at https://takweb.local (iPhone also at https://172.20.10.14).</p>
+          <button type="button" class="mbtn" id="meshNetScan">SEARCH WLANS</button>
+          <select id="meshNetList" class="in hidden"></select>
+          <input id="meshNetSsid" class="in" placeholder="WLAN name (e.g. your phone's hotspot)" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <input id="meshNetPsk" class="in" type="password" placeholder="Password (min. 8 characters, empty = open)" autocomplete="off">
+          <label class="check"><input type="checkbox" id="meshNetIphone"> iPhone hotspot: fixed address 172.20.10.14</label>
+          <button type="button" class="mbtn pri" id="meshNetGo">CONNECT TO THIS WLAN</button>
+          <button type="button" class="mbtn" id="meshNetOff">NO INTERNET WLAN</button>
+        </details>
         <div class="kv"><span>Nodes heard (2 h)</span><b id="meshNodes">–</b></div>
         <div class="kv"><span>Sending via mesh</span><b id="meshSending">–</b></div>
         <p class="hint hidden" id="meshBt">This browser has no Bluetooth. Android: use Chrome. iPhone: open TAKweb in the free "Bluefy" app.</p>
