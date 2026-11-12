@@ -232,8 +232,30 @@
   const PORT_ADMIN = 6;
   const adminPacket = (node, admin) => toRadioPacket({ to: node, portnum: PORT_ADMIN, payload: admin.done(), id: 1 + Math.floor(Math.random() * 0xfffffff0), hopLimit: 0 });
   // WLAN of the radio on (client of e.g. a phone hotspot), the other network settings stay
-  function adminSetWifi(node, networkRaw, { ssid, psk, enabled = true }) {
-    const net = withoutFields(networkRaw, [1, 3, 4]).bool(1, enabled).str(3, ssid).str(4, psk);
+  // fixed address in an iPhone hotspot: always 172.20.10.0/28 (router .1, devices from .2) – .14 is the last one
+  const IPHONE_IP = '172.20.10.14';
+  const ipBytes = ip => {
+    const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(String(ip).trim());
+    if (!m || m.slice(1).some(x => +x > 255)) throw new Error('Not an IPv4 address: ' + ip);
+    return m.slice(1).map(Number);
+  };
+  // as the firmware stores it (ESP32 IPAddress: first byte lowest)
+  const ipU32 = ip => { const b = ipBytes(ip); return (b[0] | b[1] << 8 | b[2] << 16 | b[3] << 24) >>> 0; };
+  // fixed IP -> { ip, gateway, subnet, dns }: iPhone hotspot /28, otherwise /24 with the router on .1
+  function staticNet(ip) {
+    const b = ipBytes(ip);
+    if (b[0] === 172 && b[1] === 20 && b[2] === 10 && b[3] < 16) return { ip: b.join('.'), gateway: '172.20.10.1', subnet: '255.255.255.240', dns: '172.20.10.1' };
+    const gw = `${b[0]}.${b[1]}.${b[2]}.1`;
+    if (b[3] === 1 || b[3] === 0 || b[3] === 255) throw new Error('Not usable for the radio: ' + ip);
+    return { ip: b.join('.'), gateway: gw, subnet: '255.255.255.0', dns: gw };
+  }
+  // NetworkConfig: wifi_enabled 1, ssid 3, psk 4, address_mode 7 (DHCP 0 / STATIC 1), ipv4_config 8 { ip, gateway, subnet, dns }
+  function adminSetWifi(node, networkRaw, { ssid, psk, enabled = true, ip = '' }) {
+    const net = withoutFields(networkRaw, ip ? [1, 3, 4, 7, 8] : [1, 3, 4, 7]).bool(1, enabled).str(3, ssid).str(4, psk);
+    if (ip) {
+      const s = staticNet(ip);
+      net.uint(7, 1).msg(8, new Writer().fixed(1, ipU32(s.ip)).fixed(2, ipU32(s.gateway)).fixed(3, ipU32(s.subnet)).fixed(4, ipU32(s.dns)));
+    }
     return adminPacket(node, new Writer().msg(34, new Writer().msg(4, net)));
   }
   const adminReboot = (node, seconds = 2) => adminPacket(node, new Writer().int(97, seconds));
@@ -500,7 +522,7 @@
   }
 
   return {
-    XMODEM, crc16, toRadioXmodem, adminSetWifi, adminReboot, withoutFields,
+    XMODEM, crc16, toRadioXmodem, adminSetWifi, adminReboot, withoutFields, IPHONE_IP, ipU32, staticNet,
     voicePackets, voiceRequest, parseVoice, VoiceAssembler, VOICE_CHUNK,
     PORT, BROADCAST, ALL_CHAT, TEAMS, ROLES, FOUNTAIN, Writer, decode,
     wantConfig, toRadioPacket, takPli, takChat, parseTak, parseFromRadio, parseUserPayload, parsePositionPayload,

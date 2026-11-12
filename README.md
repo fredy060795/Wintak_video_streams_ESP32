@@ -487,7 +487,7 @@ LoRa, Bloodhound, R&B … The map shows a coordinate grid (map tiles only if the
 **Put it on a radio:** Admin → **Meshtastic** → "TAKweb on a Meshtastic radio" (Chrome/Edge on a PC, radio with Meshtastic
 on USB): connect, and TAKweb is written onto the radio's flash over the normal Meshtastic connection (XModem; the old
 Meshtastic web app is removed, the radio's settings stay), checked, then the WLAN set and the radio restarted. 525 KB –
-fits radios with 4 MB flash. The package is also at `/api/eud/meshsite.zip` (link in the admin card) for the [MeshtasticDesktop](https://github.com/fredy060795/MeshtasticDesktop) flasher, section "4. TAKweb aufs Gerät" – without Chrome/Edge and offline.
+fits radios with 4 MB flash. The radio gets the fixed address 172.20.10.14 by default – in an iPhone hotspot it is then always at https://172.20.10.14 (bookmark it); for Android hotspots leave the address empty and take the IP from the radio display or try https://meshtastic.local. The package is also at `/api/eud/meshsite.zip` (link in the admin card) for the [MeshtasticDesktop](https://github.com/fredy060795/MeshtasticDesktop) flasher, section "4. TAKweb aufs Gerät" – without Chrome/Edge and offline.
 
 **WLAN:** the Meshtastic firmware cannot open its own WLAN – the radio joins one: the hotspot of a phone. Default
 **TAKweb** / **12345678** (WPA2 needs ≥ 8 characters; an empty password = open network). iPhone: the hotspot carries the

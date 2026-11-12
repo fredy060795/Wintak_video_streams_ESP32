@@ -97,6 +97,26 @@ test('installer: removes the old web files, writes TAKweb, checks the sizes, set
   assert.deepEqual([...steps], ['remove', 'upload', 'check', 'wifi', 'done']);
 });
 
+test('installer: fixed address for the iPhone hotspot, back to DHCP without one', () => {
+  assert.equal(P.ipU32('172.20.10.14'), (172 | 20 << 8 | 10 << 16 | 14 << 24) >>> 0);
+  assert.deepEqual(P.staticNet('172.20.10.14'), { ip: '172.20.10.14', gateway: '172.20.10.1', subnet: '255.255.255.240', dns: '172.20.10.1' });
+  assert.equal(P.staticNet('192.168.43.50').gateway, '192.168.43.1');
+  assert.throws(() => P.staticNet('300.1.1.1'));
+  assert.throws(() => P.staticNet('192.168.43.1'));
+  const before = W().str(5, 'pool.ntp.org').uint(7, 1).msg(8, W().fixed(1, 99)).done();
+  const admin = pkt => P.decode(P.decode(P.decode(P.decode(pkt).get(1)[0].v).get(4)[0].v).get(2)[0].v);
+  const net = buf => P.decode(P.decode(admin(buf).get(34)[0].v).get(4)[0].v);
+  const fixed = net(P.adminSetWifi(5, before, { ssid: 'TAKweb', psk: '12345678', ip: P.IPHONE_IP }));
+  assert.equal(fixed.get(7)[0].v, 1, 'STATIC');
+  const v4 = P.decode(fixed.get(8)[0].v);
+  assert.equal(Buffer.from(v4.get(1)[0].v).readUInt32LE(0), P.ipU32('172.20.10.14'));
+  assert.equal(Buffer.from(v4.get(3)[0].v).readUInt32LE(0), P.ipU32('255.255.255.240'));
+  assert.equal(fixed.get(8).length, 1);
+  assert.equal(Buffer.from(fixed.get(5)[0].v).toString(), 'pool.ntp.org');
+  const dhcp = net(P.adminSetWifi(5, before, { ssid: 'TAKweb', psk: '12345678' }));
+  assert.ok(!dhcp.has(7), 'DHCP (0) again');
+});
+
 test('installer: a full flash is noticed (the firmware confirms anyway)', async () => {
   const radio = new FakeRadio({ capacity: 600 });
   const inst = connect(radio);
