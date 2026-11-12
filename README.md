@@ -522,6 +522,8 @@ versions), update only, the files to download (.uf2 for nRF52/RP2040).
 - **TAKweb online:** when the phone has internet (its mobile data), the radio page shows "TAKWEB ONLINE". It opens TAKweb
   from the server – login/QR, certificate, video, camera – and that page uses this radio over WLAN for the mesh
   (Meshtastic → Radio over WLAN, set by itself). Without internet the radio page stays: map, positions, chat over the mesh.
+- **WLAN name:** every radio opens its own WLAN with its own name – automatically `TAKweb-<last 4 of the MAC>`, or the
+  name and password the admin enters when setting up the radio – so ten radios never share one WLAN name.
 - **TAK user on the radio:** "Set up a radio with TAKweb" puts the server address and – choice "TAK user on the radio" – a
   TAK user onto the radio (new one per radio, or an existing one). "TAKWEB ONLINE" then logs in by itself; the person only
   changes the name. Anyone in the radio's WLAN can read this login: one user per radio, block it in the admin when a

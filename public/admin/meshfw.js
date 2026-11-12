@@ -298,7 +298,7 @@ async function radioPortAgain(old, info, ms = 40000) {
 
 // after the flash, over the radio's serial API (Meshtastic runs now; waits for its first start): the address of this
 // TAKweb server (the radio page offers "TAKweb online" with it) and the mesh channel
-async function finishRadio(port, url, server, invite) {
+async function finishRadio(port, url, server, invite, ap) {
   let inst = null;
   const link = new MI.SerialLink(port, frame => { try { inst.feed(P.parseFromRadio(frame)); } catch (e) { /* not for us */ } });
   inst = new MI.RadioInstaller({ P, send: b => link.send(b), log: t => log(t + '\n') });
@@ -312,11 +312,20 @@ async function finishRadio(port, url, server, invite) {
       await inst.put('/static/takweb-server.json', new TextEncoder().encode(JSON.stringify(invite ? { server, invite } : { server })));
       log(`TAKweb server on the radio: ${server}${invite ? ' (with the TAK user)' : ''}\n`);
     }
-    if (!url) return [];
-    const r = P.applyChannelUrl(st.node, url, { region: inst.region > 0 ? inst.region : P.REGIONS.EU_868 });
-    for (const pkt of r.packets) { await link.send(pkt); await sleep(300); }
-    log(`Channel set: ${r.names.join(', ')}\n`);
-    return r.names;
+    // the radio's own WLAN: the name the admin chose, otherwise TAKweb-<last 4 of the MAC> (= of the node number)
+    const ssid = ap.ssid || 'TAKweb-' + (st.node & 0xffff).toString(16).toUpperCase().padStart(4, '0');
+    await inst.put('/prefs/takweb-ap.txt', new TextEncoder().encode(`${ssid}\n${ap.psk}\n`));
+    log(`WLAN of the radio: ${ssid}${ap.psk ? '' : ' (open)'}\n`);
+    let names = [];
+    if (url) {
+      const r = P.applyChannelUrl(st.node, url, { region: inst.region > 0 ? inst.region : P.REGIONS.EU_868 });
+      for (const pkt of r.packets) { await link.send(pkt); await sleep(300); }
+      log(`Channel set: ${r.names.join(', ')}\n`);
+      names = r.names;
+    }
+    await sleep(800);
+    await link.send(P.adminReboot(st.node, 2)); // the new WLAN name/password take effect after the restart
+    return { names, ssid };
   } finally { await link.close(); }
 }
 
@@ -325,10 +334,13 @@ $('suGo').addEventListener('click', async () => {
   const d = v && v.devices.find(x => x.target === $('suDev').value);
   if (busy || !d) return;
   if (!('serial' in navigator)) return suSay('This browser cannot reach USB radios – use Chrome or Edge on a PC.', false);
+  if ($('suPsk').value && $('suPsk').value.length < 8) return suSay('The WLAN password needs at least 8 characters (or leave it empty for an open WLAN).', false);
+  if (new TextEncoder().encode($('suSsid').value.trim()).length > 32) return suSay('The WLAN name may have at most 32 characters.', false);
   if (!confirm(`${radioName(d)} is set up new: Meshtastic, TAKweb and the mesh channel. Its old settings and nodes are replaced.\n\nConnect the radio with a USB data cable, then press OK and choose it in the list.`)) return;
   let port;
   try { port = await navigator.serial.requestPort(); } catch (e) { return; } // list closed
   const info = port.getInfo(), chan = $('suChan').value;
+  const ap = { ssid: $('suSsid').value.trim(), psk: $('suPsk').value };
   busy = true;
   logTo = 'suLog';
   $('suGo').disabled = true;
@@ -358,7 +370,7 @@ $('suGo').addEventListener('click', async () => {
       }
     }
     suBar(85);
-    let names = [], server = '', invite = '', who = null;
+    let names = [], ssid = '', server = '', invite = '', who = null;
     try { server = (await (await fetch('/api/eud/meshsite')).json()).server || ''; } catch (e) { /* without */ }
     if ($('suUser').value) { // the radio's own TAK user (new or chosen)
       const r = await api('mesh-invite', { method: 'POST', body: $('suUser').value === 'new' ? {} : { id: $('suUser').value } });
@@ -366,14 +378,14 @@ $('suGo').addEventListener('click', async () => {
       who = r.user;
       log(`TAK user for the radio: ${who.callsign} (${who.username})\n`);
     }
-    suSay('The radio starts … then it gets the server address' + (chan ? ' and the mesh channel' : '') + ' (up to a minute).');
+    suSay('The radio starts … then it gets its WLAN name, the server address' + (chan ? ' and the mesh channel' : '') + ' (up to a minute).');
     await sleep(6000);
     const p2 = await radioPortAgain(port, info);
     suBar(90);
-    names = await finishRadio(p2, chan, server, invite);
+    ({ names, ssid } = await finishRadio(p2, chan, server, invite, ap));
     if (who) loadSetupUsers();
     suBar(100);
-    suSay(`Done! ${radioName(d)} has TAKweb${names.length ? ', the mesh channel ' + names.join(', ') : ''}${who ? ' and the TAK user ' + who.callsign : ''}. On the phone: WLAN "TAKweb" (password 12345678) → https://takweb.local – accept the certificate once${who ? '; with internet "TAKWEB ONLINE" logs in by itself' : ''}.`);
+    suSay(`Done! ${radioName(d)} has TAKweb${names.length ? ', the mesh channel ' + names.join(', ') : ''}${who ? ' and the TAK user ' + who.callsign : ''}. On the phone: WLAN "${ssid}"${ap.psk ? ` (password ${ap.psk})` : ' (open)'} → https://takweb.local – accept the certificate once${who ? '; with internet "TAKWEB ONLINE" logs in by itself' : ''}.`);
   } catch (e) {
     suSay('Not finished: ' + (e.message || e), false);
     log('\nError: ' + (e.message || e) + '\n');
