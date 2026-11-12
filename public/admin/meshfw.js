@@ -84,6 +84,27 @@ async function espFlash({ port, files, eraseAll, baud, chip, progress = () => {}
   }
 }
 
+// 1200 bps reset (like the Meshtastic web flasher): open at 1200 baud and drop DTR – many radios go into boot mode
+async function touch1200(port) {
+  try {
+    await port.open({ baudRate: 1200 });
+    await port.setSignals({ dataTerminalReady: false, requestToSend: false }).catch(() => {});
+    await new Promise(r => setTimeout(r, 300));
+  } finally {
+    try { await port.close(); } catch (e) { /* gone */ }
+  }
+}
+async function bootMode(say) {
+  if (!('serial' in navigator)) return say('This browser cannot reach USB radios – use Chrome or Edge on a PC.', false);
+  let port;
+  try { port = await navigator.serial.requestPort(); } catch (e) { return; }
+  try {
+    await touch1200(port);
+    say('1200 bps reset sent – the radio should be in boot mode now. Press the flash button again (choose the port again if it changed).', true);
+  } catch (e) { say('1200 bps reset not possible: ' + (e.message || e) + '. Hold BOOT / USR while plugging in the USB cable instead.', false); }
+}
+$('fwBoot').addEventListener('click', () => bootMode((t, ok) => setMsg($('fwMsg'), t, ok)));
+
 async function fileOf(key, name) {
   const r = await fetch(`/api/admin/firmware/file/${encodeURIComponent(key)}/${encodeURIComponent(name)}`, { credentials: 'same-origin' });
   if (!r.ok) throw new Error(name + ': ' + r.status);
@@ -228,6 +249,7 @@ $('suFetch').addEventListener('click', async () => {
   $('suFetch').disabled = false;
 });
 $('suImport').addEventListener('click', () => $('fwZip').click());
+$('suBoot').addEventListener('click', () => bootMode(suSay));
 
 // the same radio again after its restart (USB radios with their own USB, e.g. XIAO ESP32-S3, reconnect as a new port)
 async function radioPortAgain(old, info, ms = 40000) {
@@ -289,9 +311,14 @@ $('suGo').addEventListener('click', async () => {
         await espFlash({ port, files, eraseAll: false, baud: tries ? 115200 : 460800, chip: d.chip, progress: p => suBar(3 + p * 0.8), say: t => suSay(t) });
         break;
       } catch (e) {
-        if (tries++ || /chip/.test(e.message)) throw e;
-        log('\nOnce more, slower …\n');
-        await sleep(1500);
+        if (tries++ || /chip/.test(e.message)) {
+          throw new Error((e.message || e) + ' – hold BOOT / USR while plugging in the USB cable (ESP32-S3), then press 2 again.');
+        }
+        log('\nNo answer – 1200 bps reset (boot mode), then once more, slower …\n');
+        suSay('The radio did not answer – trying boot mode (1200 bps reset) …');
+        try { await touch1200(port); } catch (x) { /* the port may already be gone */ }
+        await sleep(2500);
+        port = await radioPortAgain(port, info, 20000).catch(() => port);
       }
     }
     suBar(85);
