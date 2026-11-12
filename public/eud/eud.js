@@ -2620,7 +2620,17 @@ startHeading(true);
 // one tap asks for both (the compass may only be asked within a tap). Shown only while something is missing.
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 let permAsked = false;
+// on the radio's own WLAN the page may come over http (captive portal, http://takweb/): the browser then gives no
+// position, compass or microphone – offer the same page over https (the radio's self-signed certificate, once)
+const insecureRadio = () => MESH_ONLY && !window.isSecureContext && location.protocol === 'http:';
 function updatePermBar() {
+  if (insecureRadio()) {
+    $('permBar').classList.remove('hidden');
+    $('permGo').textContent = 'HTTPS';
+    $('permText').textContent = 'Opened over http – here the browser gives no own position, compass or microphone (mesh, map and chat work). '
+      + 'HTTPS opens the same page securely; accept the radio\'s certificate once (Advanced → continue).';
+    return;
+  }
   // Android app: Android keeps the app's permissions – no bar after the start, only when something was really refused
   const voice = window.eudVoice;
   const mic = !!voice && (nativeApp ? voice.micDenied() : voice.needMic());
@@ -2637,6 +2647,7 @@ function updatePermBar() {
     : ' Still refused: tap the lock icon next to the address → Permissions → Location.';
 }
 $('permGo').addEventListener('click', () => {
+  if (insecureRadio()) { location.href = 'https://' + location.hostname + location.pathname; return; }
   if (nativeApp) {
     if (bgGeo && bgGeo.openSettings) bgGeo.openSettings();
     // back from the settings: try again
