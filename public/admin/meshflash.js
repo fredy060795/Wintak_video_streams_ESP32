@@ -17,7 +17,16 @@
   async function showSize() {
     try { const p = await loadPackage(); $('mfSize').textContent = `TAKweb ${p.version} for the radio: ${p.files.length} files, ${kb(p.total)} on the flash`; } catch (err) { $('mfSize').textContent = err.message; }
   }
-  document.addEventListener('admin-view', e => { if (e.detail === 'mesh') showSize(); });
+  // the mesh channels of the OTS (admin → Meshtastic): a new install has the default channel and hears no one else
+  async function loadChannels() {
+    const sel = $('mfChan'), keep = sel.value;
+    try {
+      const r = await api('ots/mesh');
+      sel.replaceChildren(new Option("keep the radio's channel", ''), ...r.channels.filter(c => c.url).map(c => new Option(`${c.name || '(no name)'} – ${[c.modem_preset, c.lora_region].filter(Boolean).join(' · ')}`, c.url)));
+      sel.value = keep || (r.channels.find(c => c.url) || {}).url || '';
+    } catch (e) { /* no OTS – keep */ }
+  }
+  document.addEventListener('admin-view', e => { if (e.detail === 'mesh') { showSize(); loadChannels(); } });
   $('mfMap').addEventListener('change', showSize);
 
   $('mfGo').addEventListener('click', async () => {
@@ -49,9 +58,9 @@
       inst = new MeshInstall.RadioInstaller({ P, send: b => link.send(b), log });
       setMsg($('mfMsg'), 'Connecting to the radio …', true);
       await link.open();
-      const LABEL = { remove: 'Removing the old web files', upload: 'Writing TAKweb', check: 'Checking', wifi: 'Setting the WLAN', done: 'Done' };
+      const LABEL = { remove: 'Removing the old web files', upload: 'Writing TAKweb', check: 'Checking', channel: 'Setting the mesh channel', wifi: 'Setting the WLAN', done: 'Done' };
       await inst.install({
-        files, wifi: ssid ? { ssid, psk, ip } : null,
+        files, wifi: ssid ? { ssid, psk, ip } : null, channelUrl: $('mfChan').value,
         onProgress: p => {
           setMsg($('mfMsg'), `${LABEL[p.step]}${p.file ? ' – ' + p.file : ''}${p.step === 'upload' ? ` (${kb(p.done)} / ${kb(p.total)})` : ''}`, true);
           if (p.step === 'upload') bar(p.done, p.total);

@@ -47,7 +47,7 @@ test('decodes FromRadio: TAK packet, text, my info, node, channel, config comple
     kind: 'nodeInfo',
     node: { num: 1234, user: { id: '!000004d2', longName: 'Hans Mesh', shortName: 'HM' }, position: { lat: 48, lon: 7.9, alt: 300, time: 1700000000, speed: null, course: null }, lastHeard: 1700000100 },
   });
-  assert.deepEqual(P.parseFromRadio(bytes('52120801120c1201011a07416972736f66741802')), { kind: 'channel', channel: { index: 1, role: 2, name: 'Airsoft' } });
+  assert.deepEqual(P.parseFromRadio(bytes('52120801120c1201011a07416972736f66741802')), { kind: 'channel', channel: { index: 1, role: 2, name: 'Airsoft', key: 'default' } });
   assert.deepEqual(P.parseFromRadio(bytes('3863')), { kind: 'configComplete', id: 99 });
   assert.deepEqual(P.parsePositionPayload(bytes('0d4045cbeb15004a1f5a78048001b401')), { lat: -33.9, lon: 151.2, alt: null, time: 0, speed: 4, course: 180 });
   assert.throws(() => P.decode(bytes('0a05ff')), /truncated/);

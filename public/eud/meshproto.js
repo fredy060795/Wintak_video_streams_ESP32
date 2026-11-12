@@ -185,7 +185,10 @@
     }
     if (has(f, 10)) {
       const c = sub(f, 10), s = sub(c, 2);
-      return { kind: 'channel', channel: { index: i32(c, 1), role: u32(c, 3), name: s ? str(s, 3) : '' } };
+      const psk = s ? bytes(s, 2) : null;
+      // key: none = unencrypted, 1 byte 0x01 = the public default key ("AQ=="), otherwise an own key
+      const key = !psk || !psk.length ? 'none' : (psk.length === 1 ? (psk[0] === 1 ? 'default' : 'simple') : 'own');
+      return { kind: 'channel', channel: { index: i32(c, 1), role: u32(c, 3), name: s ? str(s, 3) : '', key } };
     }
     if (has(f, 7)) return { kind: 'configComplete', id: u32(f, 7) };
     if (has(f, 8)) return { kind: 'rebooted' };
@@ -195,7 +198,8 @@
       const cf = decode(bytes(f, 5));
       const lora = has(cf, 6) ? (bytes(cf, 6) || new Uint8Array(0)) : null;
       // LoRaConfig.region (7): 0 = UNSET – then the radio neither sends nor receives
-      return { kind: 'config', network: bytes(cf, 4), lora, region: lora ? u32(decode(lora), 7) : undefined };
+      const lc = lora ? decode(lora) : null;
+      return { kind: 'config', network: bytes(cf, 4), lora, region: lc ? u32(lc, 7) : undefined, preset: lc ? u32(lc, 2) : undefined, usePreset: lc ? !!u32(lc, 1) : undefined };
     }
     return { kind: 'other' };
   }
@@ -306,6 +310,36 @@
   function adminSetRegion(node, loraRaw, region) {
     const lora = withoutFields(loraRaw, [7]).uint(7, region);
     return adminPacket(node, new Writer().msg(34, new Writer().msg(6, lora)));
+  }
+  const PRESETS = ['LONG_FAST', 'LONG_SLOW', 'VERY_LONG_SLOW', 'MEDIUM_SLOW', 'MEDIUM_FAST', 'SHORT_SLOW', 'SHORT_FAST', 'LONG_MODERATE', 'SHORT_TURBO', 'LONG_TURBO'];
+  // Meshtastic channel link (https://meshtastic.org/e/#<base64url ChannelSet>): ChannelSet { settings (1, repeated), lora_config (2) }
+  function parseChannelUrl(url) {
+    const m = /#([A-Za-z0-9_\-+/=]+)/.exec(String(url || '').trim());
+    if (!m) throw new Error('Not a Meshtastic channel link (https://meshtastic.org/e/#…)');
+    const b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
+    const bin = atob(b64 + '='.repeat((4 - b64.length % 4) % 4));
+    const f = decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+    const settings = (f.get(1) || []).filter(x => x.wt === 2).map(x => x.v);
+    if (!settings.length) throw new Error('The link contains no channel.');
+    return { settings, names: settings.map(s => str(decode(s), 3)), lora: bytes(f, 2) };
+  }
+  // AdminMessage.set_channel (33): Channel { index 1, settings 2, role 3 (1 primary, 2 secondary, 0 off) }
+  const adminSetChannel = (node, index, settingsRaw, role) =>
+    adminPacket(node, new Writer().msg(33, new Writer().int(1, index).bytes(2, settingsRaw, true).uint(3, role)));
+  // the LoRa settings of a link; a link without region keeps the radio's region
+  function adminSetLora(node, loraRaw, keepRegion) {
+    const lf = decode(loraRaw || new Uint8Array(0));
+    const lora = withoutFields(loraRaw, u32(lf, 7) ? [] : [7]);
+    if (!u32(lf, 7) && keepRegion) lora.uint(7, keepRegion);
+    return adminPacket(node, new Writer().msg(34, new Writer().msg(6, lora)));
+  }
+  // all packets to put a channel link onto the radio (primary + secondary channels, the rest off, LoRa settings)
+  function applyChannelUrl(node, url, { region = 0, max = 8 } = {}) {
+    const c = parseChannelUrl(url);
+    const out = c.settings.slice(0, max).map((s, i) => adminSetChannel(node, i, s, i ? 2 : 1));
+    for (let i = c.settings.length; i < max; i++) out.push(adminSetChannel(node, i, new Uint8Array(0), 0));
+    if (c.lora) out.push(adminSetLora(node, c.lora, region));
+    return { packets: out, names: c.names };
   }
   const adminReboot = (node, seconds = 2) => adminPacket(node, new Writer().int(97, seconds));
 
@@ -571,7 +605,8 @@
   }
 
   return {
-    XMODEM, crc16, sha256, toRadioXmodem, adminSetWifi, adminReboot, adminSetRegion, REGIONS, withoutFields, IPHONE_IP, ipU32, staticNet,
+    XMODEM, crc16, sha256, toRadioXmodem, adminSetWifi, adminReboot, adminSetRegion, REGIONS, PRESETS,
+    parseChannelUrl, adminSetChannel, adminSetLora, applyChannelUrl, withoutFields, IPHONE_IP, ipU32, staticNet,
     voicePackets, voiceRequest, parseVoice, VoiceAssembler, VOICE_CHUNK,
     PORT, BROADCAST, ALL_CHAT, TEAMS, ROLES, FOUNTAIN, Writer, decode,
     wantConfig, toRadioPacket, takPli, takChat, parseTak, parseFromRadio, parseUserPayload, parsePositionPayload,

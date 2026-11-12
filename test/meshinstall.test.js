@@ -52,7 +52,12 @@ class FakeRadio {
       const data = P.decode(pkt.get(4)[0].v);
       if (data.get(1)[0].v !== 6) return;
       const admin = P.decode(data.get(2)[0].v);
-      if (admin.has(34)) this.network = Buffer.from(P.decode(admin.get(34)[0].v).get(4)[0].v);
+      if (admin.has(34)) {
+        const c = P.decode(admin.get(34)[0].v);
+        if (c.has(4)) this.network = Buffer.from(c.get(4)[0].v);
+        if (c.has(6)) this.lora = Buffer.from(c.get(6)[0].v);
+      }
+      if (admin.has(33)) { const ch = P.decode(admin.get(33)[0].v); (this.channels = this.channels || {})[ch.has(1) ? ch.get(1)[0].v : 0] = ch; }
       if (admin.has(97)) this.rebooted = true;
     }
   }
@@ -164,4 +169,20 @@ test('radio site: world map, server badge and the installing server\'s address',
   assert.ok(world.land1.length > 100 && world.cities.length > 1000);
   const small = require('../lib/meshsite').build('t1', '', 'small');
   assert.ok(small.total < 700 * 1024, 'the small map still fits radios with a 1 MB file system');
+});
+
+test('channel link: primary + secondary channels, the rest off, LoRa settings with the radio\'s region', async () => {
+  const cs = W().msg(1, W().bytes(2, new Uint8Array(32).fill(7)).str(3, 'TAKNET')).msg(1, W().str(3, 'ops')).msg(2, W().bool(1, true).uint(2, 4)).done();
+  const url = 'https://meshtastic.org/e/#' + Buffer.from(cs).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  assert.deepEqual(P.parseChannelUrl(url).names, ['TAKNET', 'ops']);
+  assert.throws(() => P.parseChannelUrl('https://example.org/'), /Not a Meshtastic channel link/);
+  const radio = new FakeRadio({ files: {} });
+  const inst = connect(radio);
+  await inst.install({ files: [{ name: 'index.html', gz: Uint8Array.from(Buffer.from('x')) }], wifi: null, channelUrl: url });
+  const role = i => (radio.channels[i].has(3) ? radio.channels[i].get(3)[0].v : 0);
+  assert.deepEqual([role(0), role(1), role(2), role(7)], [1, 2, 0, 0]);
+  assert.equal(Buffer.from(P.decode(radio.channels[0].get(2)[0].v).get(3)[0].v).toString(), 'TAKNET');
+  const lora = P.decode(radio.lora);
+  assert.equal(lora.get(2)[0].v, 4, 'modem preset from the link');
+  assert.equal(lora.get(7)[0].v, 3, 'no region in the link: EU_868 / the radio\'s region');
 });

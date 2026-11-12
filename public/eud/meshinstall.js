@@ -21,12 +21,14 @@
       this.myNode = 0;
       this.files = [];
       this.network = null;
+      this.region = 0;
     }
 
     feed(m) {
       if (m.kind === 'myInfo') this.myNode = m.nodeNum;
       else if (m.kind === 'fileInfo') this.files.push({ name: m.name, size: m.size });
       else if (m.kind === 'config' && m.network) this.network = m.network;
+      else if (m.kind === 'config' && m.lora) this.region = m.region;
       for (const w of this.waiters.slice()) if (w.test(m)) { this.waiters.splice(this.waiters.indexOf(w), 1); clearTimeout(w.timer); w.resolve(m); }
     }
 
@@ -82,8 +84,9 @@
       if (await this.xm({ control: X.EOT }) !== X.ACK) throw new Error('End of ' + name + ' not confirmed');
     }
 
-    // files: [{ name, gz: Uint8Array }]; wifi: { ssid, psk } or null; onProgress({ step, done, total, file })
-    async install({ files, wifi, onProgress = () => {} }) {
+    // files: [{ name, gz: Uint8Array }]; wifi: { ssid, psk } or null; channelUrl: Meshtastic channel link to set (or '');
+    // onProgress({ step, done, total, file })
+    async install({ files, wifi, channelUrl = '', onProgress = () => {} }) {
       const st = await this.readState();
       this.log(`Radio ${this.P.nodeId(st.node)}: ${st.files.length} files on the flash`);
       const old = st.files.filter(f => /^\/?static\//.test(f.name));
@@ -104,6 +107,12 @@
       const after = await this.readState();
       const bad = files.filter(f => { const x = after.files.find(y => y.name.replace(/^\//, '') === `static/${f.name}.gz`); return !x || x.size !== f.gz.length; });
       if (bad.length) throw new Error(`Not stored completely (flash full?): ${bad.map(f => f.name).join(', ')}`);
+      if (channelUrl) { // the mesh's channel and key – a new install hears no one on its default channel
+        onProgress({ step: 'channel', done: 0, total: 1 });
+        const r = this.P.applyChannelUrl(this.myNode, channelUrl, { region: this.region > 0 ? this.region : this.P.REGIONS.EU_868 });
+        for (const pkt of r.packets) { await this.send(pkt); await sleep(300); }
+        this.log(`Channel set: ${r.names.join(', ')}`);
+      }
       if (wifi && wifi.ssid) {
         onProgress({ step: 'wifi', done: 0, total: 1 });
         await this.send(this.P.adminSetWifi(this.myNode, this.network, { ssid: wifi.ssid, psk: wifi.psk || '', ip: wifi.ip || '' }));

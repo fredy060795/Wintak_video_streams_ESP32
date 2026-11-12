@@ -388,6 +388,12 @@
             <option value="TH">Thailand</option><option value="MY_919">Malaysia 919 MHz</option><option value="SG_923">Singapore</option>
           </select><button type="button" class="mbtn pri" id="meshRegionGo">SET REGION</button></div>
         </div>
+        <div class="kv"><span>Radio</span><b id="meshRadioInfo">–</b></div>
+        <details class="hidden" id="meshChan"><summary>Channel from a link (all radios must use the same channel and key)</summary>
+          <p class="hint">Paste the Meshtastic channel link of your mesh (https://meshtastic.org/e/#… – from the Meshtastic app "Share", or the TAKweb admin under Meshtastic). A new install has the public default channel "LongFast" and hears no one who uses an own channel.</p>
+          <input id="meshChanUrl" class="in" placeholder="https://meshtastic.org/e/#…" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <button type="button" class="mbtn pri" id="meshChanGo">APPLY CHANNEL</button>
+        </details>
         <div class="kv"><span>Nodes heard (2 h)</span><b id="meshNodes">–</b></div>
         <div class="kv"><span>Sending via mesh</span><b id="meshSending">–</b></div>
         <p class="hint hidden" id="meshBt">This browser has no Bluetooth. Android: use Chrome. iPhone: open TAKweb in the free "Bluefy" app.</p>

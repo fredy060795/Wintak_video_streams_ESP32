@@ -37,6 +37,7 @@ const { Hq } = require('./lib/hq');
 const { Voice } = require('./lib/voice');
 const raster = require('./lib/raster');
 const meshsite = require('./lib/meshsite');
+const { FirmwareLibrary } = require('./lib/firmware');
 
 const config = {
   port: process.env.PORT ? Number(process.env.PORT) : 5036,
@@ -272,6 +273,7 @@ const VENDOR = {
   'maplibre-gl.mjs': 'maplibre-gl/dist/maplibre-gl.mjs',
   'maplibre-gl-worker.mjs': 'maplibre-gl/dist/maplibre-gl-worker.mjs',
   'maplibre-gl.css': 'maplibre-gl/dist/maplibre-gl.css',
+  'esptool.js': 'esptool-js/bundle.js', // admin: flash Meshtastic firmware over USB (ES module)
 };
 
 function serveVendor(res, name) {
@@ -1427,6 +1429,32 @@ async function handleAdminApi(req, res, route) {
     if (p) url += '#' + new URLSearchParams({ host: p.host, port: p.port, proto: p.proto, enroll: p.enrollPort }).toString();
     return send(res, 200, await QRCode.toString(url, { type: 'svg', margin: 2, errorCorrectionLevel: 'M' }), 'image/svg+xml');
   }
+  // Meshtastic firmware library (lib/firmware.js): the admin flashes radios over USB from it, files to download
+  if (route === 'firmware' && method === 'GET') return json(res, 200, { versions: firmwareLib.list() });
+  if (route === 'firmware' && method === 'POST') {
+    let buf;
+    try { buf = await readRaw(req, FIRMWARE_MAX); } catch (e) { return json(res, 413, { error: 'Package too large.' }); }
+    try { return json(res, 200, { imported: [firmwareLib.importZip(buf)], versions: firmwareLib.list() }); } catch (e) { return json(res, 400, { error: e.message }); }
+  }
+  if (route === 'firmware/releases' && method === 'GET') {
+    try { return json(res, 200, { releases: await firmwareLib.releases() }); } catch (e) { return json(res, 502, { error: 'GitHub not reachable: ' + e.message }); }
+  }
+  if (route === 'firmware/fetch' && method === 'POST') {
+    const body = await readJson(req);
+    try {
+      const imported = await firmwareLib.fetchRelease(String(body.tag || ''), Array.isArray(body.chips) ? body.chips.map(String) : []);
+      return json(res, 200, { imported, versions: firmwareLib.list() });
+    } catch (e) { return json(res, 502, { error: e.message }); }
+  }
+  const fwf = /^firmware\/file\/([\w.-]+)\/([\w.-]+)$/.exec(route);
+  if (fwf && method === 'GET') {
+    const file = firmwareLib.file(fwf[1], fwf[2]);
+    if (!file) return json(res, 404, { error: 'Not found' });
+    res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Length': fs.statSync(file).size, 'Content-Disposition': `attachment; filename="${fwf[2]}"`, 'Cache-Control': 'no-store' });
+    return fs.createReadStream(file).pipe(res);
+  }
+  const fwd = /^firmware\/([\w.-]+)$/.exec(route);
+  if (fwd && method === 'DELETE') return json(res, 200, { removed: firmwareLib.remove(fwd[1]), versions: firmwareLib.list() });
   // clear the map on all TAKweb devices (after a mission): every device asks its user on the next connection
   if (route === 'mapclear' && method === 'GET') return json(res, 200, { request: store.data.mapClear || null, devices: takLinks.size });
   if (route === 'mapclear' && method === 'POST') {
@@ -1752,6 +1780,8 @@ const voiceWss = new WebSocketServer({ noServer: true, maxPayload: 16 * 1024 });
 const voice = new Voice({ log });
 // voice messages of the chat: kept 3 days like the chat itself
 const VOICEMSG_DIR = path.join(config.dataDir, 'voicemsg');
+const FIRMWARE_MAX = 120 * 1024 * 1024; // one chip package of the desktop flasher is ~15–60 MB
+const firmwareLib = new FirmwareLibrary(path.join(config.dataDir, 'firmware'), { log });
 const VOICEMSG_MAX = 1024 * 1024; // ~60 s at 8 kHz 16 bit
 setInterval(() => {
   try { for (const f of fs.readdirSync(VOICEMSG_DIR)) { const fp = path.join(VOICEMSG_DIR, f); if (Date.now() - fs.statSync(fp).mtimeMs > 3 * 86400000) fs.rmSync(fp, { force: true }); } } catch (e) { /* no folder yet */ }
