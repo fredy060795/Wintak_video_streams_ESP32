@@ -237,7 +237,16 @@ async function loadSetupChannels() {
     new Option('public default channel (LongFast)', ''));
   if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
 }
-document.addEventListener('admin-view', e => { if (e.detail === 'mesh') { loadSetupChannels(); afterLoad(autoFirmware); } });
+// the TAK user that goes onto the radio: its user then only types a name – login and certificate come by themselves
+async function loadSetupUsers() {
+  const sel = $('suUser'), keep = sel.value;
+  let r = { ots: false, users: [] };
+  try { r = await api('mesh-users'); } catch (e) { /* none */ }
+  sel.replaceChildren(...(r.ots ? [new Option('new user for this radio (automatic)', 'new')] : []),
+    ...r.users.map(u => new Option(`${u.callsign} (${u.username})`, u.id)), new Option('none – the user logs in himself', ''));
+  if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
+}
+document.addEventListener('admin-view', e => { if (e.detail === 'mesh') { loadSetupChannels(); loadSetupUsers(); afterLoad(autoFirmware); } });
 
 // the newest TAKweb firmware from GitHub into the library – by itself when the library has none or an older build
 const CHIPS = ['esp32s3', 'esp32'];
@@ -287,8 +296,9 @@ async function radioPortAgain(old, info, ms = 40000) {
   throw new Error('The radio did not come back on USB.');
 }
 
-// mesh channel over the radio's serial API (Meshtastic runs now); waits for the first start (certificate etc.)
-async function setChannel(port, url) {
+// after the flash, over the radio's serial API (Meshtastic runs now; waits for its first start): the address of this
+// TAKweb server (the radio page offers "TAKweb online" with it) and the mesh channel
+async function finishRadio(port, url, server, invite) {
   let inst = null;
   const link = new MI.SerialLink(port, frame => { try { inst.feed(P.parseFromRadio(frame)); } catch (e) { /* not for us */ } });
   inst = new MI.RadioInstaller({ P, send: b => link.send(b), log: t => log(t + '\n') });
@@ -298,6 +308,11 @@ async function setChannel(port, url) {
     for (let t = 0; t < 4 && !st; t++) { try { st = await inst.readState(); } catch (e) { log('Radio still starting …\n'); await sleep(3000); } }
     if (!st) throw new Error('The radio does not answer – it may still be starting. The firmware is on it; set the channel later in TAKweb (Meshtastic → Channel from a link).');
     if (!st.files.some(f => /static\/index\.html\.gz$/.test(f.name))) log('Warning: TAKweb pages not found on the radio.\n');
+    if (server) {
+      await inst.put('/static/takweb-server.json', new TextEncoder().encode(JSON.stringify(invite ? { server, invite } : { server })));
+      log(`TAKweb server on the radio: ${server}${invite ? ' (with the TAK user)' : ''}\n`);
+    }
+    if (!url) return [];
     const r = P.applyChannelUrl(st.node, url, { region: inst.region > 0 ? inst.region : P.REGIONS.EU_868 });
     for (const pkt of r.packets) { await link.send(pkt); await sleep(300); }
     log(`Channel set: ${r.names.join(', ')}\n`);
@@ -343,16 +358,22 @@ $('suGo').addEventListener('click', async () => {
       }
     }
     suBar(85);
-    let names = [];
-    if (chan) {
-      suSay('The radio starts … then the mesh channel is set (up to a minute).');
-      await sleep(6000);
-      const p2 = await radioPortAgain(port, info);
-      suBar(90);
-      names = await setChannel(p2, chan);
+    let names = [], server = '', invite = '', who = null;
+    try { server = (await (await fetch('/api/eud/meshsite')).json()).server || ''; } catch (e) { /* without */ }
+    if ($('suUser').value) { // the radio's own TAK user (new or chosen)
+      const r = await api('mesh-invite', { method: 'POST', body: $('suUser').value === 'new' ? {} : { id: $('suUser').value } });
+      invite = r.invite;
+      who = r.user;
+      log(`TAK user for the radio: ${who.callsign} (${who.username})\n`);
     }
+    suSay('The radio starts … then it gets the server address' + (chan ? ' and the mesh channel' : '') + ' (up to a minute).');
+    await sleep(6000);
+    const p2 = await radioPortAgain(port, info);
+    suBar(90);
+    names = await finishRadio(p2, chan, server, invite);
+    if (who) loadSetupUsers();
     suBar(100);
-    suSay(`Done! ${radioName(d)} has TAKweb${names.length ? ' and the mesh channel ' + names.join(', ') : ''}. On the phone: WLAN "TAKweb" (password 12345678) → https://takweb.local – accept the certificate once.`);
+    suSay(`Done! ${radioName(d)} has TAKweb${names.length ? ', the mesh channel ' + names.join(', ') : ''}${who ? ' and the TAK user ' + who.callsign : ''}. On the phone: WLAN "TAKweb" (password 12345678) → https://takweb.local – accept the certificate once${who ? '; with internet "TAKWEB ONLINE" logs in by itself' : ''}.`);
   } catch (e) {
     suSay('Not finished: ' + (e.message || e), false);
     log('\nError: ' + (e.message || e) + '\n');
@@ -363,4 +384,4 @@ $('suGo').addEventListener('click', async () => {
 });
 
 // page opened right on the Meshtastic view (the view event came before this module)
-if (document.querySelector('[data-nav="mesh"].on')) { load(); loadSetupChannels(); afterLoad(autoFirmware); }
+if (document.querySelector('[data-nav="mesh"].on')) { load(); loadSetupChannels(); loadSetupUsers(); afterLoad(autoFirmware); }

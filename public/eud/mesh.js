@@ -25,6 +25,15 @@
   // TAKweb loaded from the radio itself (mesh-only page on its flash): talk to it over WLAN, no Bluetooth needed
   const ON_RADIO = !!window.TAKWEB_MESH;
   if (ON_RADIO) Object.assign(cfg, { enabled: true, transport: 'http', http: '', name: cfg.name || 'This radio (WLAN)' });
+  // TAKweb online opened from a radio's page (…/eud/#radio=https://takweb.local): use that radio over WLAN
+  else {
+    const radio = new URLSearchParams((typeof launchHash === 'string' ? launchHash : location.hash).slice(1)).get('radio');
+    if (radio && /^https?:\/\/[\w.-]+(:\d+)?$/i.test(radio)) {
+      Object.assign(cfg, { enabled: true, transport: 'http', http: radio, name: 'TAKweb radio (' + new URL(radio).host + ')' });
+      store.set('eud.mesh', cfg);
+      if (!/(^|[#&])host=/.test(location.hash)) history.replaceState(null, '', location.pathname);
+    }
+  }
   // default: always also over the mesh – otherwise devices without internet miss what online users send.
   // The old default "offline" is switched over unless the user chose it himself.
   if (cfg.send !== 'always' && !cfg.sendChosen) cfg.send = 'always';

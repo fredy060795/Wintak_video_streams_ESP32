@@ -519,6 +519,13 @@ versions), update only, the files to download (.uf2 for nRF52/RP2040).
   (https://meshtastic.org/e/#…) under "Channel from a link", or choose the OTS channel when installing from the admin.
   If the LoRa region is not set (the radio is silent), SET REGION fixes it.
 - Server button: opens the TAKweb server (the radio page itself is mesh only).
+- **TAKweb online:** when the phone has internet (its mobile data), the radio page shows "TAKWEB ONLINE". It opens TAKweb
+  from the server – login/QR, certificate, video, camera – and that page uses this radio over WLAN for the mesh
+  (Meshtastic → Radio over WLAN, set by itself). Without internet the radio page stays: map, positions, chat over the mesh.
+- **TAK user on the radio:** "Set up a radio with TAKweb" puts the server address and – choice "TAK user on the radio" – a
+  TAK user onto the radio (new one per radio, or an existing one). "TAKWEB ONLINE" then logs in by itself; the person only
+  changes the name. Anyone in the radio's WLAN can read this login: one user per radio, block it in the admin when a
+  radio is lost.
 
 ## Mission tracks (record & replay)
 
