@@ -79,7 +79,7 @@ const SOURCES = {
 for (const m of store.get('eud.takMaps', [])) SOURCES[m.id] = { name: m.name + ' (TAK server)', maxZoom: m.maxZoom || 19, attribution: '', url: m.url };
 const TILE_BASE = new URL('tiles/', location.href).pathname; // /eud/tiles/
 // TAKweb loaded from a Meshtastic radio's flash (lib/meshsite.js): no TAKweb server – mesh only, map tiles straight from
-// the internet if the phone has any, otherwise a coordinate grid
+// the internet if the phone has any (kept on the phone for later), below them the offline world map from the radio
 const MESH_ONLY = !!window.TAKWEB_MESH;
 const PUBLIC_TILES = {
   osm: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', topo: 'https://tile.opentopomap.org/{z}/{x}/{y}.png',
@@ -100,7 +100,8 @@ function sourceMaxZoom(id) { return id === 'custom' ? 20 : SOURCES[id].maxZoom; 
 // ---------------- Offline tiles without a service worker ----------------
 // Browsers without service workers (Bluefy and other iPhone apps on WKWebView) keep saved areas in IndexedDB
 // themselves; the map then takes a tile from there first. With a service worker it does all that (sw.js).
-const pageTiles = !('serviceWorker' in navigator);
+// On the radio (no service worker over its self-signed certificate) the page does it too.
+const pageTiles = MESH_ONLY || !('serviceWorker' in navigator);
 const tileDb = (() => {
   let db = null;
   const open = () => db || (db = new Promise((resolve, reject) => {
@@ -132,11 +133,25 @@ const OfflineTileLayer = L.TileLayer.extend({
     tile.alt = '';
     tile.setAttribute('role', 'presentation');
     const url = this.getTileUrl(coords);
-    tileDb.get(new URL(url, location.href).href).then(rec => {
-      if (!rec) { tile.src = url; return; }
+    const key = new URL(url, location.href).href;
+    const show = rec => {
       const obj = URL.createObjectURL(new Blob([rec.data], { type: rec.type || 'image/png' }));
       tile.addEventListener('load', () => URL.revokeObjectURL(obj), { once: true });
       tile.src = obj;
+    };
+    tileDb.get(key).then(rec => {
+      if (!rec && MESH_ONLY) {
+        // on the radio: what the phone sees with internet stays on the phone – the same area works offline later
+        fetch(key, { mode: 'cors' }).then(async res => {
+          if (!res.ok) throw new Error(String(res.status));
+          const r = { type: res.headers.get('content-type') || 'image/png', data: await res.arrayBuffer() };
+          tileDb.put(key, r).catch(() => {});
+          show(r);
+        }).catch(() => tile.dispatchEvent(new Event('error'))); // no internet: empty tile, the world map below shows
+        return;
+      }
+      if (!rec) { tile.src = url; return; }
+      show(rec);
     });
     return tile;
   },
@@ -186,7 +201,70 @@ function setTiles(id) {
   if (window.view3d) view3d.baseChanged();
 }
 setTiles(profile.tiles);
-// coordinate grid: on the radio (no map without internet) – lines every 0.001° … 10° depending on the zoom, with labels
+// offline world map from the radio's flash (worldmap.json: Natural Earth, public domain – countries, coasts, cities):
+// the base map below the tiles – without internet it is what you see, details come from the tiles when there is internet
+if (MESH_ONLY) {
+  const World = L.GridLayer.extend({
+    initialize(opts) {
+      L.GridLayer.prototype.initialize.call(this, opts);
+      this.data = null;
+      fetch('worldmap.json').then(r => r.json()).then(d => {
+        const S = d.scale || 10000;
+        // features: [bbox, [parts: x0,y0, dx,dy …]] -> [bbox in degrees, [Float64Array lon/lat …]]
+        const dec = list => list.map(([bb, parts]) => [bb.map(v => v / S), parts.map(p => {
+          const a = new Float64Array(p.length);
+          let x = 0, y = 0;
+          for (let i = 0; i < p.length; i += 2) { x += p[i]; y += p[i + 1]; a[i] = x / S; a[i + 1] = y / S; }
+          return a;
+        })]);
+        this.data = { land0: dec(d.land0), land1: dec(d.land1), cities: d.cities || [], labels: d.labels || [] };
+        this.redraw();
+      }).catch(() => {});
+    },
+    createTile(coords) {
+      const t = document.createElement('canvas');
+      const size = this.getTileSize();
+      t.width = size.x; t.height = size.y;
+      const ctx = t.getContext('2d');
+      ctx.fillStyle = '#a9c7d6';
+      ctx.fillRect(0, 0, size.x, size.y);
+      if (!this.data) return t;
+      const z = coords.z, n = 256 * Math.pow(2, z), ox = coords.x * size.x, oy = coords.y * size.y;
+      const X = lon => (lon + 180) / 360 * n - ox;
+      const Y = lat => { const s = Math.sin(Math.max(-85, Math.min(85, lat)) * Math.PI / 180); return (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * n - oy; };
+      const nw = map.unproject(coords.scaleBy(size), z), se = map.unproject(coords.scaleBy(size).add(size), z);
+      const pad = (se.lng - nw.lng) * 0.05;
+      const inView = bb => !(bb[2] < nw.lng - pad || bb[0] > se.lng + pad || bb[3] < se.lat - pad || bb[1] > nw.lat + pad);
+      ctx.fillStyle = '#ece8df'; ctx.strokeStyle = '#8f8a80'; ctx.lineWidth = 0.8;
+      for (const [bb, parts] of (z <= 3 || !this.data.land1.length ? this.data.land0 : this.data.land1)) {
+        if (!inView(bb)) continue;
+        ctx.beginPath();
+        for (const a of parts) {
+          ctx.moveTo(X(a[0]), Y(a[1]));
+          for (let i = 2; i < a.length; i += 2) ctx.lineTo(X(a[i]), Y(a[i + 1]));
+          ctx.closePath();
+        }
+        ctx.fill('evenodd'); ctx.stroke();
+      }
+      ctx.textAlign = 'center';
+      if (z <= 6) {
+        ctx.font = 'bold 11px sans-serif'; ctx.fillStyle = '#6d6455';
+        for (const [name, lon, lat, minz] of this.data.labels) if (z >= minz - 0.5) ctx.fillText(name, X(lon), Y(lat));
+      }
+      ctx.font = '11px sans-serif';
+      for (const [name, lon, lat, minz] of this.data.cities) {
+        if (z < minz || lon < nw.lng - pad || lon > se.lng + pad || lat < se.lat - pad || lat > nw.lat + pad) continue;
+        const x = X(lon), y = Y(lat);
+        ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(x, y, 2.5, 0, 7); ctx.fill();
+        ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.strokeText(name, x, y - 5);
+        ctx.fillStyle = '#222'; ctx.fillText(name, x, y - 5);
+      }
+      return t;
+    },
+  });
+  new World({ zIndex: 0, maxZoom: 22, maxNativeZoom: 12, attribution: 'Natural Earth' }).addTo(map);
+}
+// coordinate grid: on the radio – lines every 0.001° … 10° depending on the zoom, with labels
 if (MESH_ONLY) {
   const Grid = L.GridLayer.extend({
     createTile(coords) {
@@ -368,6 +446,17 @@ for (const t of document.querySelectorAll('[data-open]')) {
   });
 }
 $('connBtn').addEventListener('click', () => openPopup('server'));
+// on the radio: the address of the TAKweb server (set by the server that installed TAKweb, or entered once)
+if (MESH_ONLY) {
+  $('srvWeb').value = store.get('eud.webUrl', '') || window.TAKWEB_SERVER || '';
+  $('srvWebGo').addEventListener('click', () => {
+    let u = $('srvWeb').value.trim();
+    if (!u) return $('srvWeb').focus();
+    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+    store.set('eud.webUrl', u);
+    window.open(u, '_blank', 'noopener');
+  });
+}
 
 // ======================================================================
 // Situational picture: receive and draw CoT

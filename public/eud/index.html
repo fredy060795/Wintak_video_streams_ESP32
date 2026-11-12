@@ -254,6 +254,13 @@
 
       <!-- Servers -->
       <section data-sec="server">
+        <!-- on the radio (mesh only): the TAK server is reached through the TAKweb server – the phone keeps its internet -->
+        <div id="srvMesh">
+          <p class="hint">TAKweb on the radio works over the mesh only. For the TAK server open the TAKweb server – the phone uses its own internet for it (mobile data).</p>
+          <label for="srvWeb">TAKweb server</label>
+          <input id="srvWeb" class="in" placeholder="https://your-server/eud/" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="url">
+          <button type="button" class="mbtn pri" id="srvWebGo">OPEN TAKWEB SERVER</button>
+        </div>
         <div id="srvList"></div>
         <button type="button" class="mbtn pri" id="addSrvBtn">＋ ADD SERVER</button>
         <p class="hint">Several servers can be connected at once. Everything shows on one map; what you send goes to all connected servers.</p>
@@ -369,6 +376,37 @@
       <!-- Meshtastic over Bluetooth -->
       <section data-sec="mesh">
         <div class="nw-banner off" id="meshBanner"><span class="dot"></span><span id="meshState">Not connected</span></div>
+        <!-- LoRa region not set (e.g. after a new install): the radio is silent until it is set -->
+        <div class="hidden" id="meshRegion">
+          <p class="msg">LoRa region not set – the radio neither sends nor receives. Choose the region of your country:</p>
+          <div class="row"><select id="meshRegionSel" class="in">
+            <option value="EU_868" selected>Europe 868 MHz (EU_868)</option><option value="EU_433">Europe 433 MHz (EU_433)</option>
+            <option value="UK_868">UK 868 MHz</option><option value="US">USA / Canada 915 MHz (US)</option>
+            <option value="ANZ">Australia / NZ 915 MHz (ANZ)</option><option value="NZ_865">New Zealand 865 MHz</option>
+            <option value="JP">Japan</option><option value="KR">Korea</option><option value="TW">Taiwan</option><option value="CN">China</option>
+            <option value="IN">India</option><option value="RU">Russia</option><option value="UA_868">Ukraine 868 MHz</option>
+            <option value="TH">Thailand</option><option value="MY_919">Malaysia 919 MHz</option><option value="SG_923">Singapore</option>
+          </select><button type="button" class="mbtn pri" id="meshRegionGo">SET REGION</button></div>
+        </div>
+        <div class="kv"><span>Radio</span><b id="meshRadioInfo">–</b></div>
+        <details class="hidden" id="meshChan"><summary>Channel from a link (all radios must use the same channel and key)</summary>
+          <p class="hint">Paste the Meshtastic channel link of your mesh (https://meshtastic.org/e/#… – from the Meshtastic app "Share", or the TAKweb admin under Meshtastic). A new install has the public default channel "LongFast" and hears no one who uses an own channel.</p>
+          <input id="meshChanUrl" class="in" placeholder="https://meshtastic.org/e/#…" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <button type="button" class="mbtn pri" id="meshChanGo">APPLY CHANNEL</button>
+        </details>
+        <!-- TAKweb firmware: besides its own WLAN the radio can join a WLAN with internet (e.g. the phone's hotspot) -->
+        <details class="hidden" id="meshNet"><summary>Internet over WLAN (e.g. phone hotspot)</summary>
+          <p class="hint" id="meshNetState"></p>
+          <p class="hint">The radio keeps its own WLAN "TAKweb" and also joins this WLAN – then it has internet (time, MQTT).
+            With the phone's own hotspot: the phone reaches the radio there at https://takweb.local (iPhone also at https://172.20.10.14).</p>
+          <button type="button" class="mbtn" id="meshNetScan">SEARCH WLANS</button>
+          <select id="meshNetList" class="in hidden"></select>
+          <input id="meshNetSsid" class="in" placeholder="WLAN name (e.g. your phone's hotspot)" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <input id="meshNetPsk" class="in" type="password" placeholder="Password (min. 8 characters, empty = open)" autocomplete="off">
+          <label class="check"><input type="checkbox" id="meshNetIphone"> iPhone hotspot: fixed address 172.20.10.14</label>
+          <button type="button" class="mbtn pri" id="meshNetGo">CONNECT TO THIS WLAN</button>
+          <button type="button" class="mbtn" id="meshNetOff">NO INTERNET WLAN</button>
+        </details>
         <div class="kv"><span>Nodes heard (2 h)</span><b id="meshNodes">–</b></div>
         <div class="kv"><span>Sending via mesh</span><b id="meshSending">–</b></div>
         <p class="hint hidden" id="meshBt">This browser has no Bluetooth. Android: use Chrome. iPhone: open TAKweb in the free "Bluefy" app.</p>

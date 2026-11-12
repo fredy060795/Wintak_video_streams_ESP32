@@ -476,4 +476,7 @@ a.mbtn { color: #fff; text-decoration: none; box-sizing: border-box; }
 /* TAKweb loaded from a Meshtastic radio (mesh only): no server functions */
 body.mesh-only .tile[data-tb="server"], body.mesh-only .tile[data-tb="data"], body.mesh-only .tile[data-tb="overlays"],
 body.mesh-only .tile[data-tb="sync"], body.mesh-only .tile[data-tb="video"], body.mesh-only .tile[data-tb="voice"],
+#srvMesh { display: none; }
+body.mesh-only #srvMesh { display: block; }
+body.mesh-only #srvList, body.mesh-only #addSrvBtn, body.mesh-only section[data-sec="server"] > .hint { display: none !important; }
 body.mesh-only #btnVideo, body.mesh-only [data-tbtool="voice"], body.mesh-only [data-tbtool="video"], body.mesh-only #appBox { display: none !important; }

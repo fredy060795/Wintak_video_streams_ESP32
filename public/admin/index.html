@@ -371,6 +371,43 @@
       <div class="table-wrap"><table class="streams" id="ofTable"><thead><tr><th>Path</th><th>Origin</th><th>Source</th><th>For ATAK</th><th></th></tr></thead><tbody></tbody></table></div>
     </section>
     <section class="card" data-view="mesh">
+      <h2>Flash Meshtastic firmware <span class="mut small">(USB, Chrome/Edge on a PC)</span></h2>
+      <p class="mut small">Puts Meshtastic onto a radio, like flasher.meshtastic.org but from this server – also the
+        <b>TAKweb firmware</b> (the radio opens its own WLAN "TAKweb" with TAKweb on it: connect the phone, open
+        https://takweb.local). ESP32 radios (Heltec, T-Beam, LilyGo, XIAO ESP32-S3 …) are flashed here; for nRF52/RP2040
+        radios download the .uf2 file and copy it onto the radio's USB drive.</p>
+      <div class="row">
+        <div class="grow"><label>Firmware</label><select id="fwVer"></select></div>
+        <div class="grow"><label>Device <input id="fwFind" placeholder="search …" style="width:9em;display:inline-block;margin-left:.5em" autocomplete="off"></label><select id="fwDev"></select></div>
+      </div>
+      <p class="mut small" id="fwInfo"></p>
+      <div class="row">
+        <label class="check"><input type="radio" name="fwMode" value="update" checked> Update (settings and nodes stay)</label>
+        <label class="check"><input type="radio" name="fwMode" value="full"> Full install (erases the flash – needed for the TAKweb firmware the first time)</label>
+        <label class="check">Speed <select id="fwBaud" class="sm-select"><option>921600</option><option>460800</option><option>115200</option></select></label>
+      </div>
+      <div class="row"><button type="button" class="pri" id="fwGo">⚡ Connect radio (USB) and flash</button></div>
+      <div class="mf-bar hidden" id="fwBar"><div id="fwFill"></div></div>
+      <p class="msg" id="fwMsg"></p>
+      <pre class="mf-log hidden" id="fwLog"></pre>
+      <details>
+        <summary>Firmware library on this server</summary>
+        <p class="mut small">Packages of the MeshtasticDesktop flasher: TAKweb firmware and the official Meshtastic versions
+          (one ZIP per chip family – esp32s3 for Heltec V3/XIAO S3/T-Beam S3, esp32 for Heltec V2/T-Beam/T-LoRa).</p>
+        <div class="row">
+          <div class="grow"><label>From GitHub (fredy060795/MeshtasticDesktop releases)</label><select id="fwRel"><option value="">– load the list –</option></select></div>
+          <div><label>Chips</label><select id="fwChips" class="sm-select"><option value="esp32s3,esp32">esp32s3 + esp32</option><option value="esp32s3">esp32s3</option><option value="esp32">esp32</option><option value="">all</option></select></div>
+        </div>
+        <div class="row">
+          <button type="button" id="fwRelList">Load list</button>
+          <button type="button" class="pri" id="fwRelGet">Download into the library</button>
+          <button type="button" id="fwZipBtn">Import package (ZIP) …</button><input type="file" id="fwZip" accept=".zip" hidden>
+          <button type="button" class="danger" id="fwDel">Delete the selected version</button>
+        </div>
+        <p class="msg" id="fwLibMsg"></p>
+      </details>
+    </section>
+    <section class="card" data-view="mesh">
       <h2>TAKweb on a Meshtastic radio <span class="mut small">(ESP32: Heltec, T-Beam, XIAO ESP32-S3, LilyGo …)</span></h2>
       <p class="mut small">Puts the TAKweb app onto the radio's flash. In the field the radio joins a phone's hotspot; the phone opens
         <b>https://&lt;radio address&gt;</b> and has TAKweb – mesh only, no server, no internet, nothing installed before.
@@ -379,6 +416,7 @@
       <div class="row">
         <div class="grow"><label>Hotspot name (WLAN the radio joins)</label><input id="mfSsid" value="TAKweb" maxlength="32"></div>
         <div class="grow"><label>Hotspot password (min. 8 characters, empty = open network)</label><input id="mfPsk" value="12345678" maxlength="63"></div>
+        <div class="grow"><label>Mesh channel for the radio</label><select id="mfChan"><option value="">keep the radio's channel</option></select></div>
         <div class="grow"><label>Radio address (fixed; empty = from the hotspot)</label><input id="mfIp" value="172.20.10.14" maxlength="15" placeholder="automatic (DHCP)"></div>
       </div>
       <p class="mut small">With the fixed address 172.20.10.14 the radio is always at <b>https://172.20.10.14</b> in an iPhone
@@ -388,8 +426,9 @@
       <p class="mut small">iPhone: the hotspot has the phone's name (Settings → General → About → Name) and its password under
         Settings → Personal Hotspot. Android: Settings → Network → Hotspot. While WLAN is on, the radio's Bluetooth is off; change
         the WLAN again here over USB.</p>
+      <label class="small"><input type="checkbox" id="mfMap"> Detailed world map (~330 KB more – only radios with 8 MB flash: Heltec V3, XIAO ESP32-S3, T-Beam S3, T3S3). Without it a smaller world map (countries, bigger cities) is put on the radio.</label>
       <div class="row"><button type="button" class="pri" id="mfGo">⚡ Connect radio (USB) and install TAKweb</button><span class="mut small" id="mfSize"></span></div>
-      <p class="mut small">Without Chrome/Edge or offline: <a href="/api/eud/meshsite.zip" download>download the package (ZIP)</a> and put it
+      <p class="mut small">Without Chrome/Edge or offline: <a href="/api/eud/meshsite.zip" download>download the package (ZIP)</a> (<a href="/api/eud/meshsite.zip?map=full" download>with the detailed world map</a>) and put it
         on the radio with the MeshtasticDesktop flasher (section “4. TAKweb aufs Gerät”).</p>
       <div class="mf-bar hidden" id="mfBar"><div id="mfFill"></div></div>
       <p class="msg" id="mfMsg"></p>
@@ -613,5 +652,6 @@
 <script src="/eud/meshproto.js"></script>
 <script src="/eud/meshinstall.js"></script>
 <script src="meshflash.js"></script>
+<script type="module" src="meshfw.js"></script>
 </body>
 </html>

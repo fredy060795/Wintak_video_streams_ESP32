@@ -34,6 +34,8 @@
   let state = 'off';   // off | tap | connecting | connected | paused | lost
   let message = '';
   let myNode = 0, nonce = 0;
+  let networkRaw = null; // the radio's network settings (WLAN)
+  let loraRaw = null, region = -1, preset = -1, usePreset = true; // LoRa settings of the radio; region 0 = not set (silent)
   let pausedForVideo = false, retry = 0, retryTimer = null, pollTimer = null;
   let draining = false, drainAgain = false, writeChain = Promise.resolve(), httpFails = 0;
   let lastPli = 0, pliAt = null;
@@ -58,6 +60,16 @@
       : (STATE_TEXT[state] || state) + (message ? ' – ' + message : '');
     const heard = [...nodes.values()].filter(n => n.lastHeard && Date.now() / 1000 - n.lastHeard < NODE_MAX_AGE).length;
     $('meshNodes').textContent = state === 'connected' ? String(heard) : '–';
+    $('meshRegion').classList.toggle('hidden', !(state === 'connected' && region === 0));
+    $('meshChan').classList.toggle('hidden', state !== 'connected');
+    $('meshNet').classList.toggle('hidden', !(ON_RADIO && state === 'connected'));
+    // channel, modem preset, region and key of the radio – must match the other radios of the mesh
+    const prim = channels.find(c => c.role === 1);
+    const regName = Object.keys(P.REGIONS).find(k => P.REGIONS[k] === region) || (region === 0 ? 'REGION NOT SET' : '');
+    const keyText = prim ? { default: 'public default key', none: 'no encryption', simple: 'simple key', own: 'own key' }[prim.key] || '' : '';
+    $('meshRadioInfo').textContent = state === 'connected' && loraRaw
+      ? [prim ? (prim.name || (usePreset ? 'LongFast (default channel)' : 'unnamed')) : '', usePreset ? (P.PRESETS[preset] || '') : 'custom LoRa', regName, keyText].filter(Boolean).join(' · ')
+      : '–';
     $('meshSending').textContent = state !== 'connected' ? '–' : shouldSend() ? 'Yes (LoRa)' : 'No – TAK server connected';
     $('meshPick').classList.toggle('hidden', ON_RADIO || ['connected', 'connecting', 'paused'].includes(state));
     $('meshWlan').classList.toggle('hidden', ON_RADIO || ['connected', 'connecting'].includes(state));
@@ -253,14 +265,92 @@
     }
   }
 
+  // set the LoRa region (after a new install it is not set – then the radio is silent); the radio restarts
+  $('meshRegionGo').addEventListener('click', async () => {
+    const code = P.REGIONS[$('meshRegionSel').value];
+    if (!code || state !== 'connected' || !myNode) return;
+    try {
+      await write(P.adminSetRegion(myNode, loraRaw || new Uint8Array(0), code));
+      region = code;
+      render();
+      toast('Region set – the radio restarts and is on the mesh then.', 8000);
+    } catch (e) { toast('Region not set: ' + e.message); }
+  });
+
+  // put a Meshtastic channel link onto the radio (channels + LoRa settings); the radio may restart
+  $('meshChanGo').addEventListener('click', async () => {
+    if (state !== 'connected' || !myNode) return;
+    let r;
+    try { r = P.applyChannelUrl(myNode, $('meshChanUrl').value, { region: region > 0 ? region : P.REGIONS.EU_868 }); } catch (e) { return toast(e.message, 6000); }
+    try {
+      for (const pkt of r.packets) { await write(pkt); await new Promise(res => setTimeout(res, 300)); }
+      toast(`Channel ${r.names.join(', ')} set – the radio applies it (and may restart).`, 8000);
+      $('meshChanUrl').value = '';
+      setTimeout(() => { nonce = 1 + Math.floor(Math.random() * 0x7ffffff0); write(P.wantConfig(nonce)).then(drain).catch(() => {}); }, 4000);
+    } catch (e) { toast('Channel not set: ' + e.message); }
+  });
+
+  // ---- TAKweb firmware: a WLAN with internet besides the radio's own one (only on the radio's page)
+  const netSsid = () => { try { const f = P.decode(networkRaw || new Uint8Array(0)); return f.has(3) ? new TextDecoder().decode(f.get(3)[0].v) : ''; } catch (e) { return ''; } };
+  async function netState() {
+    const ssid = netSsid();
+    let text = ssid && ssid !== 'TAKweb' ? `Internet WLAN: "${ssid}" – ` : 'No internet WLAN set – the radio only has its own WLAN.';
+    if (ssid && ssid !== 'TAKweb') {
+      try {
+        const r = await (await fetch('/json/report', { cache: 'no-store' })).json();
+        const w = (r.data || {}).wifi || {};
+        text += w.ip && w.ip !== '0.0.0.0' ? `connected (address ${w.ip}${w.rssi ? ', ' + w.rssi + ' dBm' : ''}).` : 'not connected (out of reach or wrong password).';
+      } catch (e) { text += 'state unknown.'; }
+      $('meshNetSsid').value = $('meshNetSsid').value || ssid;
+    }
+    $('meshNetState').textContent = text;
+  }
+  $('meshNet').addEventListener('toggle', () => { if ($('meshNet').open) netState(); });
+  $('meshNetScan').addEventListener('click', async () => {
+    $('meshNetScan').disabled = true;
+    toast('Searching WLANs …');
+    try {
+      const r = await (await fetch('/json/scanNetworks', { cache: 'no-store' })).json();
+      const list = (r.data || []).sort((a, b) => b.rssi - a.rssi);
+      const sel = $('meshNetList');
+      sel.replaceChildren(new Option(list.length ? `– ${list.length} WLANs found –` : '– none found –', ''), ...list.map(n => new Option(`${n.ssid} (${n.rssi} dBm)`, n.ssid)));
+      sel.classList.remove('hidden');
+    } catch (e) { toast('Search failed: ' + e.message); }
+    $('meshNetScan').disabled = false;
+  });
+  $('meshNetList').addEventListener('change', () => {
+    const v = $('meshNetList').value;
+    if (v) { $('meshNetSsid').value = v; $('meshNetPsk').focus(); }
+  });
+  async function setNet(ssid, psk, ip) {
+    if (state !== 'connected' || !myNode) return;
+    try {
+      await write(P.adminSetWifi(myNode, networkRaw, { ssid, psk, ip }));
+      await new Promise(r => setTimeout(r, 1500));
+      await write(P.adminReboot(myNode, 3)).catch(() => {});
+      toast(ssid ? `The radio restarts and also joins "${ssid}". Its own WLAN "TAKweb" stays – reconnect to it if the phone left it.`
+        : 'The radio restarts with its own WLAN only.', 10000);
+    } catch (e) { toast('Not set: ' + e.message); }
+  }
+  $('meshNetGo').addEventListener('click', () => {
+    const ssid = $('meshNetSsid').value.trim(), psk = $('meshNetPsk').value;
+    if (!ssid) return $('meshNetSsid').focus();
+    if (psk && psk.length < 8) return toast('A WLAN password needs at least 8 characters.');
+    setNet(ssid, psk, $('meshNetIphone').checked ? P.IPHONE_IP : '');
+  });
+  $('meshNetOff').addEventListener('click', () => setNet('', '', ''));
+
   // ---------------- Receiving ----------------
 
   function handle(buf) {
     let m;
     try { m = P.parseFromRadio(buf); } catch (e) { return; }
     if (m.kind === 'myInfo') myNode = m.nodeNum;
+    else if (m.kind === 'config' && m.network) networkRaw = m.network;
+    else if (m.kind === 'config' && m.lora) { loraRaw = m.lora; region = m.region; preset = m.preset; usePreset = m.usePreset; }
     else if (m.kind === 'channel') {
-      if (m.channel.role) channels = channels.filter(c => c.index !== m.channel.index).concat(m.channel).sort((a, b) => a.index - b.index);
+      channels = channels.filter(c => c.index !== m.channel.index);
+      if (m.channel.role) channels = channels.concat(m.channel).sort((a, b) => a.index - b.index);
     } else if (m.kind === 'nodeInfo') {
       const n = node(m.node.num);
       if (m.node.user) n.user = m.node.user;
@@ -271,7 +361,7 @@
       retry = 0;
       if (!channels.some(c => c.index === cfg.channel)) { cfg.channel = 0; save(); }
       setState('connected');
-      toast('Meshtastic connected: ' + (cfg.name || 'radio'));
+      toast(region === 0 ? 'Meshtastic connected – but the LoRa region is NOT set: the radio is silent. Set it under Meshtastic.' : 'Meshtastic connected: ' + (cfg.name || 'radio'), region === 0 ? 10000 : undefined);
       lastPli = 0; // send our position right away
       tick();
     } else if (m.kind === 'rebooted') {

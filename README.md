@@ -497,6 +497,27 @@ While WLAN is on, the radio's Bluetooth is off (firmware) – change the WLAN ag
 
 In TAKweb itself (from the server), Menu → Meshtastic → "Radio over WLAN" connects to such a radio by its address.
 
+**TAKweb firmware – the radio opens its own WLAN** (easiest; built by the
+[MeshtasticDesktop](https://github.com/fredy060795/MeshtasticDesktop) workflow *TAKweb-Firmware* for Heltec V2/V3,
+T-Beam, T-Beam S3, LilyGo T-LoRa/T3S3 and Seeed XIAO ESP32-S3): flash it with a full install, connect the phone to the
+WLAN **TAKweb** (password 12345678) and open **https://takweb.local** (or https://192.168.4.1), accept the certificate
+once. The radio announces no internet router, so the phone keeps its mobile data for map tiles and the TAKweb server.
+LoRa region EU_868 is preset.
+
+**Flash firmware from the admin:** Admin → **Meshtastic** → "Flash Meshtastic firmware" (Chrome/Edge, USB). The server
+keeps a firmware library – load the TAKweb firmware or the official versions from GitHub
+(fredy060795/MeshtasticDesktop releases) or import a package ZIP of the desktop flasher. ESP32 radios are flashed in the
+browser (esptool-js); for nRF52/RP2040 radios the .uf2 file can be downloaded. Every device file is downloadable.
+
+**On the radio page:**
+- Map: an offline world map comes from the radio (Natural Earth; small on 4 MB radios, detailed on 8 MB radios). With
+  internet the normal tiles lie on top, and every tile seen stays on the phone (also "save area").
+- Meshtastic panel: channel, modem preset, region and key of the radio. **All radios need the same channel and key** – a
+  new install has the public default channel "LongFast" and hears no one with an own channel: paste the channel link
+  (https://meshtastic.org/e/#…) under "Channel from a link", or choose the OTS channel when installing from the admin.
+  If the LoRa region is not set (the radio is silent), SET REGION fixes it.
+- Server button: opens the TAKweb server (the radio page itself is mesh only).
+
 ## Mission tracks (record & replay)
 
 Admin → **Mission tracks & replay**:

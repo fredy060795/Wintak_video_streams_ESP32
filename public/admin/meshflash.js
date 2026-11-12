@@ -8,15 +8,26 @@
   const kb = n => Math.round(n / 1024) + ' KB';
   let busy = false;
 
+  const mapQ = () => ($('mfMap').checked ? '?map=full' : '');
   async function loadPackage() {
-    const r = await fetch('/api/eud/meshsite');
+    const r = await fetch('/api/eud/meshsite' + mapQ());
     if (!r.ok) throw new Error('Package not available (' + r.status + ')');
     return r.json();
   }
-  document.addEventListener('admin-view', async e => {
-    if (e.detail !== 'mesh') return;
+  async function showSize() {
     try { const p = await loadPackage(); $('mfSize').textContent = `TAKweb ${p.version} for the radio: ${p.files.length} files, ${kb(p.total)} on the flash`; } catch (err) { $('mfSize').textContent = err.message; }
-  });
+  }
+  // the mesh channels of the OTS (admin → Meshtastic): a new install has the default channel and hears no one else
+  async function loadChannels() {
+    const sel = $('mfChan'), keep = sel.value;
+    try {
+      const r = await api('ots/mesh');
+      sel.replaceChildren(new Option("keep the radio's channel", ''), ...r.channels.filter(c => c.url).map(c => new Option(`${c.name || '(no name)'} – ${[c.modem_preset, c.lora_region].filter(Boolean).join(' · ')}`, c.url)));
+      sel.value = keep || (r.channels.find(c => c.url) || {}).url || '';
+    } catch (e) { /* no OTS – keep */ }
+  }
+  document.addEventListener('admin-view', e => { if (e.detail === 'mesh') { showSize(); loadChannels(); } });
+  $('mfMap').addEventListener('change', showSize);
 
   $('mfGo').addEventListener('click', async () => {
     if (busy) return;
@@ -36,7 +47,7 @@
       const pkg = await loadPackage();
       const files = [];
       for (const f of pkg.files) {
-        const r = await fetch('/api/eud/meshsite/' + encodeURIComponent(f.name));
+        const r = await fetch('/api/eud/meshsite/' + encodeURIComponent(f.name) + mapQ());
         if (!r.ok) throw new Error(f.name + ': ' + r.status);
         files.push({ name: f.name, gz: new Uint8Array(await r.arrayBuffer()) });
       }
@@ -47,9 +58,9 @@
       inst = new MeshInstall.RadioInstaller({ P, send: b => link.send(b), log });
       setMsg($('mfMsg'), 'Connecting to the radio …', true);
       await link.open();
-      const LABEL = { remove: 'Removing the old web files', upload: 'Writing TAKweb', check: 'Checking', wifi: 'Setting the WLAN', done: 'Done' };
+      const LABEL = { remove: 'Removing the old web files', upload: 'Writing TAKweb', check: 'Checking', channel: 'Setting the mesh channel', wifi: 'Setting the WLAN', done: 'Done' };
       await inst.install({
-        files, wifi: ssid ? { ssid, psk, ip } : null,
+        files, wifi: ssid ? { ssid, psk, ip } : null, channelUrl: $('mfChan').value,
         onProgress: p => {
           setMsg($('mfMsg'), `${LABEL[p.step]}${p.file ? ' – ' + p.file : ''}${p.step === 'upload' ? ` (${kb(p.done)} / ${kb(p.total)})` : ''}`, true);
           if (p.step === 'upload') bar(p.done, p.total);
