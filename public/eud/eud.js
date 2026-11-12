@@ -87,6 +87,13 @@ const PUBLIC_TILES = {
   esritopo: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
 };
 if (MESH_ONLY) document.body.classList.add('mesh-only');
+// on the radio: its small web server can drop a file now and then – then a part of TAKweb is missing: offer a reload
+if (MESH_ONLY) {
+  window.addEventListener('load', () => setTimeout(() => {
+    const missing = [!window.meshProto && 'meshproto.js', !window.eudMeshReady && 'mesh.js', !window.L && 'leaflet.js'].filter(Boolean);
+    if (missing.length && confirm(`Part of TAKweb did not load from the radio (${missing.join(', ')}). Load the page again?`)) location.reload();
+  }, 1500));
+}
 if (!SOURCES[profile.tiles] && profile.tiles !== 'custom') profile.tiles = 'osm';
 
 function sourceTemplate(id) {
@@ -1925,6 +1932,8 @@ let draft = null;
 let draftOrig = null;
 
 function openEdit(srv) {
+  // on the radio (mesh only) there is no TAKweb server behind the page: servers are reached through the TAKweb server
+  if (MESH_ONLY) return openPopup('server');
   draftOrig = srv;
   draft = srv ? JSON.parse(JSON.stringify(srv)) : newServer();
   openPopup('edit', srv ? 'Edit server' : 'Add server');
@@ -2212,6 +2221,7 @@ function parseQr(text) {
 
 // apply server data: into the open draft, otherwise into the matching or a new server
 async function applyConfig(cfg, auto) {
+  if (MESH_ONLY) { openPopup('server'); return; } // see openEdit
   if (!draft || popupSec !== 'edit') {
     const existing = servers.find(s => s.host === cfg.host && (!cfg.port || s.port === cfg.port));
     openEdit(existing || null);
@@ -2256,6 +2266,12 @@ function decodeImage(source, w, h) {
 }
 function onQr(text) {
   stopScan();
+  // on the radio: an invitation link of a TAKweb server opens that server (its certificate request needs it)
+  if (MESH_ONLY && /^https?:\/\//i.test(text)) {
+    try { store.set('eud.webUrl', new URL(text).origin + '/eud/'); } catch (e) { /* keep */ }
+    window.open(text, '_blank', 'noopener');
+    return;
+  }
   try {
     applyConfig(parseQr(text), true);
   } catch (e) {
