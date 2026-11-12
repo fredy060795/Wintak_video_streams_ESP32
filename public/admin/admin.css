@@ -227,3 +227,7 @@ table.kv td { padding: 4px 0; word-break: break-all; }
 .mf-bar { height: 10px; border: 1px solid var(--bd); border-radius: 5px; overflow: hidden; margin: 8px 0; }
 .mf-bar > div { height: 100%; width: 0; background: var(--acc); transition: width .2s; }
 .mf-log { max-height: 180px; overflow: auto; font-size: 12px; background: rgba(0, 0, 0, .25); padding: 8px; border-radius: 6px; }
+/* radio setup in one step (Meshtastic → Set up a radio with TAKweb) */
+button.su-go { font-size: 1.15em; padding: 12px 22px; }
+.msg.su-msg { font-size: 1.05em; }
+#suDev, #suChan { font-size: 1.05em; }

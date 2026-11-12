@@ -504,10 +504,12 @@ WLAN **TAKweb** (password 12345678) and open **https://takweb.local** (or https:
 once. The radio announces no internet router, so the phone keeps its mobile data for map tiles and the TAKweb server.
 LoRa region EU_868 is preset.
 
-**Flash firmware from the admin:** Admin → **Meshtastic** → "Flash Meshtastic firmware" (Chrome/Edge, USB). The server
-keeps a firmware library – load the TAKweb firmware or the official versions from GitHub
-(fredy060795/MeshtasticDesktop releases) or import a package ZIP of the desktop flasher. ESP32 radios are flashed in the
-browser (esptool-js); for nRF52/RP2040 radios the .uf2 file can be downloaded. Every device file is downloadable.
+**Set up a radio in one step (admin):** Admin → **Meshtastic** → "Set up a radio with TAKweb" (Chrome/Edge on a PC,
+radio on USB): 1. choose the radio (e.g. Seeed XIAO ESP32-S3) and the mesh channel, 2. "Connect the radio and set it up".
+TAKweb writes the TAKweb firmware (Meshtastic + TAKweb + region EU_868) over USB (esptool-js), waits for the restart and
+sets the OTS mesh channel over the radio's serial API. The firmware comes once from GitHub (fredy060795/MeshtasticDesktop
+releases, "Load the TAKweb firmware") or as a ZIP file. Under "Advanced": any firmware of the library (also the official
+versions), update only, the files to download (.uf2 for nRF52/RP2040).
 
 **On the radio page:**
 - Map: an offline world map comes from the radio (Natural Earth; small on 4 MB radios, detailed on 8 MB radios). With

@@ -371,44 +371,58 @@
       <div class="table-wrap"><table class="streams" id="ofTable"><thead><tr><th>Path</th><th>Origin</th><th>Source</th><th>For ATAK</th><th></th></tr></thead><tbody></tbody></table></div>
     </section>
     <section class="card" data-view="mesh">
-      <h2>Flash Meshtastic firmware <span class="mut small">(USB, Chrome/Edge on a PC)</span></h2>
-      <p class="mut small">Puts Meshtastic onto a radio, like flasher.meshtastic.org but from this server – also the
-        <b>TAKweb firmware</b> (the radio opens its own WLAN "TAKweb" with TAKweb on it: connect the phone, open
-        https://takweb.local). ESP32 radios (Heltec, T-Beam, LilyGo, XIAO ESP32-S3 …) are flashed here; for nRF52/RP2040
-        radios download the .uf2 file and copy it onto the radio's USB drive.</p>
+      <h2>Set up a radio with TAKweb <span class="mut small">(Chrome/Edge on a PC, radio on USB)</span></h2>
+      <p class="mut small">One step puts everything on the radio: Meshtastic, TAKweb, LoRa region EU_868 and your mesh channel.
+        Afterwards: phone → WLAN <b>TAKweb</b> (password 12345678) → <b>https://takweb.local</b>.</p>
       <div class="row">
-        <div class="grow"><label>Firmware</label><select id="fwVer"></select></div>
-        <div class="grow"><label>Device <input id="fwFind" placeholder="search …" style="width:9em;display:inline-block;margin-left:.5em" autocomplete="off"></label><select id="fwDev"></select></div>
+        <div class="grow"><label>1. Which radio?</label><select id="suDev"></select></div>
+        <div class="grow"><label>Mesh channel</label><select id="suChan"></select></div>
       </div>
-      <p class="mut small" id="fwInfo"></p>
-      <div class="row">
-        <label class="check"><input type="radio" name="fwMode" value="update" checked> Update (settings and nodes stay)</label>
-        <label class="check"><input type="radio" name="fwMode" value="full"> Full install (erases the flash – needed for the TAKweb firmware the first time)</label>
-        <label class="check">Speed <select id="fwBaud" class="sm-select"><option>921600</option><option>460800</option><option>115200</option></select></label>
-      </div>
-      <div class="row"><button type="button" class="pri" id="fwGo">⚡ Connect radio (USB) and flash</button></div>
-      <div class="mf-bar hidden" id="fwBar"><div id="fwFill"></div></div>
-      <p class="msg" id="fwMsg"></p>
-      <pre class="mf-log hidden" id="fwLog"></pre>
+      <p class="mut small" id="suNote"></p>
+      <div class="row hidden" id="suLoad"><button type="button" class="pri" id="suFetch">Load the TAKweb firmware (GitHub)</button><button type="button" id="suImport">… or import a firmware file (ZIP)</button></div>
+      <div class="row"><button type="button" class="pri su-go" id="suGo">2. Connect the radio and set it up</button></div>
+      <div class="mf-bar hidden" id="suBar"><div id="suFill"></div></div>
+      <p class="msg su-msg" id="suMsg"></p>
+      <pre class="mf-log hidden" id="suLog"></pre>
       <details>
-        <summary>Firmware library on this server</summary>
-        <p class="mut small">Packages of the MeshtasticDesktop flasher: TAKweb firmware and the official Meshtastic versions
-          (one ZIP per chip family – esp32s3 for Heltec V3/XIAO S3/T-Beam S3, esp32 for Heltec V2/T-Beam/T-LoRa).</p>
-        <div class="row">
-          <div class="grow"><label>From GitHub (fredy060795/MeshtasticDesktop releases)</label><select id="fwRel"><option value="">– load the list –</option></select></div>
-          <div><label>Chips</label><select id="fwChips" class="sm-select"><option value="esp32s3,esp32">esp32s3 + esp32</option><option value="esp32s3">esp32s3</option><option value="esp32">esp32</option><option value="">all</option></select></div>
+        <summary>Advanced: other firmware, update only, firmware library, files to download</summary>
+        <p class="mut small">Any Meshtastic firmware of the library – also the official versions. ESP32 radios are flashed here; for nRF52/RP2040
+          radios download the .uf2 file and copy it onto the radio's USB drive.</p>
+      <div class="row">
+          <div class="grow"><label>Firmware</label><select id="fwVer"></select></div>
+          <div class="grow"><label>Device <input id="fwFind" placeholder="search …" style="width:9em;display:inline-block;margin-left:.5em" autocomplete="off"></label><select id="fwDev"></select></div>
         </div>
+        <p class="mut small" id="fwInfo"></p>
         <div class="row">
-          <button type="button" id="fwRelList">Load list</button>
-          <button type="button" class="pri" id="fwRelGet">Download into the library</button>
-          <button type="button" id="fwZipBtn">Import package (ZIP) …</button><input type="file" id="fwZip" accept=".zip" hidden>
-          <button type="button" class="danger" id="fwDel">Delete the selected version</button>
+          <label class="check"><input type="radio" name="fwMode" value="update" checked> Update (settings and nodes stay)</label>
+          <label class="check"><input type="radio" name="fwMode" value="full"> Full install (erases the flash – needed for the TAKweb firmware the first time)</label>
+          <label class="check">Speed <select id="fwBaud" class="sm-select"><option>921600</option><option>460800</option><option>115200</option></select></label>
         </div>
-        <p class="msg" id="fwLibMsg"></p>
+        <div class="row"><button type="button" class="pri" id="fwGo">⚡ Connect radio (USB) and flash</button></div>
+        <div class="mf-bar hidden" id="fwBar"><div id="fwFill"></div></div>
+        <p class="msg" id="fwMsg"></p>
+        <pre class="mf-log hidden" id="fwLog"></pre>
+        <details>
+          <summary>Firmware library on this server</summary>
+          <p class="mut small">Packages of the MeshtasticDesktop flasher: TAKweb firmware and the official Meshtastic versions
+            (one ZIP per chip family – esp32s3 for Heltec V3/XIAO S3/T-Beam S3, esp32 for Heltec V2/T-Beam/T-LoRa).</p>
+          <div class="row">
+            <div class="grow"><label>From GitHub (fredy060795/MeshtasticDesktop releases)</label><select id="fwRel"><option value="">– load the list –</option></select></div>
+            <div><label>Chips</label><select id="fwChips" class="sm-select"><option value="esp32s3,esp32">esp32s3 + esp32</option><option value="esp32s3">esp32s3</option><option value="esp32">esp32</option><option value="">all</option></select></div>
+          </div>
+          <div class="row">
+            <button type="button" id="fwRelList">Load list</button>
+            <button type="button" class="pri" id="fwRelGet">Download into the library</button>
+            <button type="button" id="fwZipBtn">Import package (ZIP) …</button><input type="file" id="fwZip" accept=".zip" hidden>
+            <button type="button" class="danger" id="fwDel">Delete the selected version</button>
+          </div>
+          <p class="msg" id="fwLibMsg"></p>
+        </details>
       </details>
     </section>
     <section class="card" data-view="mesh">
-      <h2>TAKweb on a Meshtastic radio <span class="mut small">(ESP32: Heltec, T-Beam, XIAO ESP32-S3, LilyGo …)</span></h2>
+      <details>
+        <summary><b>Advanced: put only TAKweb onto a radio with normal Meshtastic firmware</b> <span class="mut small">(the radio joins a phone hotspot)</span></summary>
       <p class="mut small">Puts the TAKweb app onto the radio's flash. In the field the radio joins a phone's hotspot; the phone opens
         <b>https://&lt;radio address&gt;</b> and has TAKweb – mesh only, no server, no internet, nothing installed before.
         The radio must already run Meshtastic (flash it first, e.g. with the Meshtastic flasher). Connect it with a USB data cable;
@@ -433,6 +447,7 @@
       <div class="mf-bar hidden" id="mfBar"><div id="mfFill"></div></div>
       <p class="msg" id="mfMsg"></p>
       <pre class="mf-log hidden" id="mfLog"></pre>
+      </details>
     </section>
 
     <section class="card" data-view="mesh">
