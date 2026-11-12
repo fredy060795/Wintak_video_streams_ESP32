@@ -398,7 +398,8 @@
   const MAX_SOURCE_BLOCKS = 10; // ~2 KB compressed – larger (long routes …) waits for the TAK server
   const BLOCK_GAP = 1600;      // ms between blocks (LongFast airtime like the plugin's default)
   const sleep = ms => new Promise(r => setTimeout(r, ms));
-  const sha8 = async b => new Uint8Array(await crypto.subtle.digest('SHA-256', b)).slice(0, 8);
+  // over plain http (the radio's own WLAN) crypto.subtle is missing – then the small SHA-256 below
+  const sha8 = async b => (window.crypto && crypto.subtle ? new Uint8Array(await crypto.subtle.digest('SHA-256', b)) : P.sha256(b)).slice(0, 8);
   const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
   const through = async (bytes, stream) => new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer());
   const zlib = bytes => (window.CompressionStream ? through(bytes, new CompressionStream('deflate')) : Promise.resolve(bytes));

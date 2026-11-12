@@ -133,3 +133,11 @@ test('serial: frames between log text, split across reads', () => {
   assert.deepEqual(frames, [[1, 2, 3], [9]]);
   assert.match(text.join(''), /DEBUG boot/);
 });
+
+test('sha256 without crypto.subtle (plain http on the radio\'s own WLAN) matches the real one', () => {
+  const c = require('crypto');
+  for (const n of [0, 1, 55, 56, 63, 64, 65, 1000, 70000]) {
+    const b = c.randomBytes(n);
+    assert.equal(Buffer.from(P.sha256(b)).toString('hex'), c.createHash('sha256').update(b).digest('hex'));
+  }
+});
