@@ -23,6 +23,8 @@
     if (!('serial' in navigator)) return setMsg($('mfMsg'), 'This browser cannot reach USB devices – use Chrome or Edge on a PC.');
     const ssid = $('mfSsid').value.trim(), psk = $('mfPsk').value;
     if (psk && psk.length < 8) return setMsg($('mfMsg'), 'A WLAN password needs at least 8 characters (or leave it empty for an open network).');
+    const ip = $('mfIp').value.trim();
+    if (ip) { try { P.staticNet(ip); } catch (e) { return setMsg($('mfMsg'), e.message); } }
     let port;
     try { port = await navigator.serial.requestPort(); } catch (e) { return; } // dialog closed
     busy = true;
@@ -47,7 +49,7 @@
       await link.open();
       const LABEL = { remove: 'Removing the old web files', upload: 'Writing TAKweb', check: 'Checking', wifi: 'Setting the WLAN', done: 'Done' };
       await inst.install({
-        files, wifi: ssid ? { ssid, psk } : null,
+        files, wifi: ssid ? { ssid, psk, ip } : null,
         onProgress: p => {
           setMsg($('mfMsg'), `${LABEL[p.step]}${p.file ? ' – ' + p.file : ''}${p.step === 'upload' ? ` (${kb(p.done)} / ${kb(p.total)})` : ''}`, true);
           if (p.step === 'upload') bar(p.done, p.total);
@@ -55,7 +57,7 @@
       });
       bar(1, 1);
       setMsg($('mfMsg'), ssid
-        ? `Done. The radio restarts and joins the WLAN "${ssid}". On the phone: hotspot "${ssid}" on, then open https://<radio address> (the address is on the radio's display or in the hotspot's list of devices) and accept the certificate once.`
+        ? `Done. The radio restarts and joins the WLAN "${ssid}". On the phone: hotspot "${ssid}" on, then open ${ip ? 'https://' + ip : "https://<radio address> (on the radio's display) or https://meshtastic.local"} and accept the certificate once.`
         : 'Done – TAKweb is on the radio (WLAN not changed).', true);
     } catch (e) {
       setMsg($('mfMsg'), 'Not installed: ' + e.message);

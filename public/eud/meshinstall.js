@@ -106,10 +106,10 @@
       if (bad.length) throw new Error(`Not stored completely (flash full?): ${bad.map(f => f.name).join(', ')}`);
       if (wifi && wifi.ssid) {
         onProgress({ step: 'wifi', done: 0, total: 1 });
-        await this.send(this.P.adminSetWifi(this.myNode, this.network, { ssid: wifi.ssid, psk: wifi.psk || '' }));
+        await this.send(this.P.adminSetWifi(this.myNode, this.network, { ssid: wifi.ssid, psk: wifi.psk || '', ip: wifi.ip || '' }));
         await sleep(1500);
         await this.send(this.P.adminReboot(this.myNode, 3)).catch(() => {});
-        this.log(`WLAN set: "${wifi.ssid}" – the radio restarts (Bluetooth is off while WLAN is on)`);
+        this.log(`WLAN set: "${wifi.ssid}", ${wifi.ip ? 'fixed address ' + wifi.ip : 'address from the hotspot (DHCP)'} – the radio restarts (Bluetooth is off while WLAN is on)`);
       }
       onProgress({ step: 'done', done: 1, total: 1 });
     }
