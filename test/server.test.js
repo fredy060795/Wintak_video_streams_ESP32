@@ -839,6 +839,20 @@ test('voice messages: upload only with a login, link plays for everybody (also A
   assert.equal((await fetch(base + '/voicemsg/' + '0'.repeat(32) + '.wav')).status, 404);
 });
 
+test('TAKweb for a Meshtastic radio: package list, gzipped files, ZIP for the desktop flasher', async () => {
+  const zlib = require('zlib');
+  const l = await fetch(base + '/api/eud/meshsite').then(r => r.json());
+  assert.ok(l.files.some(f => f.name === 'index.html') && l.total > 100000);
+  const gz = Buffer.from(await (await fetch(base + '/api/eud/meshsite/index.html')).arrayBuffer());
+  assert.match(zlib.gunzipSync(gz).toString(), /TAKWEB_MESH/);
+  assert.equal((await fetch(base + '/api/eud/meshsite/../server.js')).status, 404);
+  const z = await fetch(base + '/api/eud/meshsite.zip');
+  assert.equal(z.headers.get('content-type'), 'application/zip');
+  const zb = Buffer.from(await z.arrayBuffer());
+  assert.equal(zb.readUInt32LE(0), 0x04034b50);
+  assert.ok(zb.includes(Buffer.from('takweb-mesh.json')) && zb.includes(Buffer.from('milsymbol.js.gz')));
+});
+
 test('helpers: may approve and create users, but not change settings', async () => {
   const { createMockOts } = require('./ots-mock');
   const mock = createMockOts();

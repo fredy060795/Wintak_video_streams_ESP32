@@ -374,6 +374,12 @@
         <p class="hint hidden" id="meshBt">This browser has no Bluetooth. Android: use Chrome. iPhone: open TAKweb in the free "Bluefy" app.</p>
         <button type="button" class="mbtn hidden" id="meshBluefy">COPY LINK FOR BLUEFY</button>
         <button type="button" class="mbtn pri big" id="meshPick">CONNECT MESHTASTIC RADIO</button>
+        <details class="hidden" id="meshWlan"><summary>Radio over WLAN</summary>
+          <p class="hint">A Meshtastic radio with WLAN on (e.g. on this phone's hotspot) has its own web server. Open its address once in
+            a tab and accept the certificate, then connect here.</p>
+          <input id="meshHttp" placeholder="https://192.168.43.20" autocomplete="off">
+          <button type="button" class="mbtn" id="meshWlanGo">CONNECT OVER WLAN</button>
+        </details>
         <div class="row2">
           <button type="button" class="mbtn hidden" id="meshNew">OTHER RADIO</button>
           <button type="button" class="mbtn red hidden" id="meshOff">DISCONNECT</button>

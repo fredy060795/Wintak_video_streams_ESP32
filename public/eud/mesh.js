@@ -20,7 +20,11 @@
 
   const cfg = Object.assign({
     enabled: false, id: '', name: '', send: 'always', interval: 60, channel: 0, nodes: true, text: true, bridge: true,
+    transport: 'ble', http: '', // http: the radio over WLAN (its HTTP API) – '' = the radio that serves this page
   }, store.get('eud.mesh', {}));
+  // TAKweb loaded from the radio itself (mesh-only page on its flash): talk to it over WLAN, no Bluetooth needed
+  const ON_RADIO = !!window.TAKWEB_MESH;
+  if (ON_RADIO) Object.assign(cfg, { enabled: true, transport: 'http', http: '', name: cfg.name || 'This radio (WLAN)' });
   // default: always also over the mesh – otherwise devices without internet miss what online users send.
   // The old default "offline" is switched over unless the user chose it himself.
   if (cfg.send !== 'always' && !cfg.sendChosen) cfg.send = 'always';
@@ -31,7 +35,7 @@
   let message = '';
   let myNode = 0, nonce = 0;
   let pausedForVideo = false, retry = 0, retryTimer = null, pollTimer = null;
-  let draining = false, drainAgain = false, writeChain = Promise.resolve();
+  let draining = false, drainAgain = false, writeChain = Promise.resolve(), httpFails = 0;
   let lastPli = 0, pliAt = null;
   const nodes = new Map(); // num -> { user, position, lastHeard, takUid }
   let channels = [];
@@ -55,12 +59,14 @@
     const heard = [...nodes.values()].filter(n => n.lastHeard && Date.now() / 1000 - n.lastHeard < NODE_MAX_AGE).length;
     $('meshNodes').textContent = state === 'connected' ? String(heard) : '–';
     $('meshSending').textContent = state !== 'connected' ? '–' : shouldSend() ? 'Yes (LoRa)' : 'No – TAK server connected';
-    $('meshPick').classList.toggle('hidden', ['connected', 'connecting', 'paused'].includes(state));
+    $('meshPick').classList.toggle('hidden', ON_RADIO || ['connected', 'connecting', 'paused'].includes(state));
+    $('meshWlan').classList.toggle('hidden', ON_RADIO || ['connected', 'connecting'].includes(state));
+    if (!$('meshHttp').value && cfg.http) $('meshHttp').value = cfg.http;
     $('meshPick').textContent = cfg.enabled && cfg.name ? 'RECONNECT ' + cfg.name : 'CONNECT MESHTASTIC RADIO';
     $('meshOff').classList.toggle('hidden', !cfg.enabled);
     $('meshNew').classList.toggle('hidden', !cfg.id || state === 'connecting');
-    $('meshBt').classList.toggle('hidden', !!navigator.bluetooth);
-    $('meshBluefy').classList.toggle('hidden', !!navigator.bluetooth || !isIOS);
+    $('meshBt').classList.toggle('hidden', ON_RADIO || !!navigator.bluetooth);
+    $('meshBluefy').classList.toggle('hidden', ON_RADIO || !!navigator.bluetooth || !isIOS);
     $('meshSend').value = cfg.send;
     $('meshInterval').value = String(cfg.interval);
     $('meshShowNodes').checked = cfg.nodes;
@@ -119,6 +125,41 @@
     device.addEventListener('gattserverdisconnected', onLost);
   }
 
+  // ---------------- WLAN: the radio's HTTP API (Meshtastic firmware: /api/v1/toradio, /api/v1/fromradio) ----------------
+  // the same protobufs as over Bluetooth; there is no notification, so the radio is asked about once a second
+  const httpBase = () => String(cfg.http || '').replace(/\/+$/, '');
+  function httpChars() {
+    const base = httpBase();
+    const tx = { writeValue: async bytes => {
+      const r = await fetch(base + '/api/v1/toradio', { method: 'PUT', headers: { 'Content-Type': 'application/x-protobuf' }, body: bytes });
+      if (!r.ok) throw new Error('radio answered ' + r.status);
+    } };
+    const rx = { readValue: async () => {
+      const r = await fetch(base + '/api/v1/fromradio?all=false', { cache: 'no-store' });
+      if (!r.ok) throw new Error('radio answered ' + r.status);
+      return new DataView(await r.arrayBuffer());
+    } };
+    return { tx, rx };
+  }
+  async function openHttp() {
+    setState('connecting');
+    try {
+      const { tx, rx } = httpChars();
+      await rx.readValue(); // reachable?
+      toRadio = tx; fromRadio = rx; fromNum = null;
+      clearInterval(pollTimer);
+      pollTimer = setInterval(() => { drain().catch(() => {}); }, 1000);
+      myNode = 0;
+      channels = [];
+      nonce = 1 + Math.floor(Math.random() * 0x7ffffff0);
+      await write(P.wantConfig(nonce));
+      drain();
+    } catch (e) {
+      toRadio = fromRadio = null;
+      if (cfg.enabled) { setState('lost', 'radio over WLAN not reachable'); schedule(); }
+    }
+  }
+
   // after a reload: the browser may give us the permitted radio again without a device dialog
   async function restore() {
     if (device || !cfg.enabled || !cfg.id) return !!device;
@@ -133,6 +174,7 @@
   async function open() {
     clearTimeout(retryTimer);
     if (!cfg.enabled || pausedForVideo || state === 'connecting') return;
+    if (cfg.transport === 'http') return openHttp();
     if (!device && !(await restore())) return setState('tap');
     setState('connecting');
     try {
@@ -177,7 +219,7 @@
     clearTimeout(retryTimer);
     clearInterval(pollTimer);
     toRadio = fromRadio = fromNum = null;
-    if (device && device.gatt.connected) device.gatt.disconnect();
+    if (device && device.gatt && device.gatt.connected) device.gatt.disconnect();
   }
 
   function write(bytes) {
@@ -202,8 +244,10 @@
           handle(new Uint8Array(v.buffer, v.byteOffset, v.byteLength));
         }
       } while (drainAgain && fromRadio);
+      httpFails = 0;
     } catch (e) {
-      /* connection gone – onLost handles it */
+      // Bluetooth: onLost handles it. WLAN has no disconnect event: three failed reads in a row count as lost
+      if (cfg.transport === 'http' && fromRadio && ++httpFails >= 3) { httpFails = 0; onLost(); }
     } finally {
       draining = false;
     }
@@ -696,13 +740,27 @@
 
   // known radio: reconnect; after a reload without permission (or a new radio): the browser's device dialog
   $('meshPick').addEventListener('click', () => {
+    if (cfg.transport === 'http') { cfg.transport = 'ble'; save(); }
     if (!device) return pick();
     cfg.enabled = true;
     save();
     retry = 0;
     open();
   });
-  $('meshNew').addEventListener('click', pick);
+  $('meshNew').addEventListener('click', () => { cfg.transport = 'ble'; save(); pick(); });
+  // a radio over WLAN (its own web server, e.g. on the phone's hotspot): https://<address> – the browser must have
+  // accepted the radio's certificate once (open the address in a tab)
+  $('meshWlanGo').addEventListener('click', () => {
+    let u = $('meshHttp').value.trim();
+    if (!u) return msg('Enter the address of the radio, e.g. https://192.168.43.20');
+    if (!/^https?:\/\//i.test(u)) u = (location.protocol === 'https:' ? 'https://' : 'http://') + u;
+    if (location.protocol === 'https:' && /^http:/i.test(u)) return msg('This page is https – the radio must be opened with https:// too.');
+    disconnect();
+    Object.assign(cfg, { enabled: true, transport: 'http', http: u, name: 'WLAN ' + new URL(u).host });
+    save();
+    retry = 0;
+    open();
+  });
   $('meshOff').addEventListener('click', () => {
     cfg.enabled = false;
     save();
