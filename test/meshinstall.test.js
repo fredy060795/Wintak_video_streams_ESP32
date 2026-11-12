@@ -141,3 +141,27 @@ test('sha256 without crypto.subtle (plain http on the radio\'s own WLAN) matches
     assert.equal(Buffer.from(P.sha256(b)).toString('hex'), c.createHash('sha256').update(b).digest('hex'));
   }
 });
+
+test('LoRa region: read from the config, set with the other LoRa settings kept', () => {
+  const lora = W().bool(1, true).uint(2, 0).done(); // use_preset, region unset
+  const fr = W().msg(5, W().msg(6, { done: () => lora })).done();
+  const m = P.parseFromRadio(fr);
+  assert.equal(m.kind, 'config');
+  assert.equal(m.region, 0);
+  const admin = pkt => P.decode(P.decode(P.decode(P.decode(pkt).get(1)[0].v).get(4)[0].v).get(2)[0].v);
+  const set = P.decode(P.decode(admin(P.adminSetRegion(7, m.lora, P.REGIONS.EU_868)).get(34)[0].v).get(6)[0].v);
+  assert.equal(set.get(7)[0].v, 3);
+  assert.equal(set.get(1)[0].v, 1, 'use_preset stays');
+});
+
+test('radio site: world map, server badge and the installing server\'s address', () => {
+  const site = require('../lib/meshsite').build('t1', 'https://tak.example/eud/', 'full');
+  const names = site.files.map(f => f.name);
+  for (const n of ['worldmap.json', 'tak-badge.png', 'index.html']) assert.ok(names.includes(n), n);
+  const html = require('zlib').gunzipSync(site.files.find(f => f.name === 'index.html').gz).toString();
+  assert.match(html, /window\.TAKWEB_SERVER = "https:\/\/tak\.example\/eud\/"/);
+  const world = JSON.parse(require('zlib').gunzipSync(site.files.find(f => f.name === 'worldmap.json').gz));
+  assert.ok(world.land1.length > 100 && world.cities.length > 1000);
+  const small = require('../lib/meshsite').build('t1', '', 'small');
+  assert.ok(small.total < 700 * 1024, 'the small map still fits radios with a 1 MB file system');
+});

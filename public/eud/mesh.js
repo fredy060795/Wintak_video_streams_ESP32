@@ -34,6 +34,7 @@
   let state = 'off';   // off | tap | connecting | connected | paused | lost
   let message = '';
   let myNode = 0, nonce = 0;
+  let loraRaw = null, region = -1; // LoRa settings of the radio; region 0 = not set (the radio is silent)
   let pausedForVideo = false, retry = 0, retryTimer = null, pollTimer = null;
   let draining = false, drainAgain = false, writeChain = Promise.resolve(), httpFails = 0;
   let lastPli = 0, pliAt = null;
@@ -58,6 +59,7 @@
       : (STATE_TEXT[state] || state) + (message ? ' – ' + message : '');
     const heard = [...nodes.values()].filter(n => n.lastHeard && Date.now() / 1000 - n.lastHeard < NODE_MAX_AGE).length;
     $('meshNodes').textContent = state === 'connected' ? String(heard) : '–';
+    $('meshRegion').classList.toggle('hidden', !(state === 'connected' && region === 0));
     $('meshSending').textContent = state !== 'connected' ? '–' : shouldSend() ? 'Yes (LoRa)' : 'No – TAK server connected';
     $('meshPick').classList.toggle('hidden', ON_RADIO || ['connected', 'connecting', 'paused'].includes(state));
     $('meshWlan').classList.toggle('hidden', ON_RADIO || ['connected', 'connecting'].includes(state));
@@ -253,12 +255,25 @@
     }
   }
 
+  // set the LoRa region (after a new install it is not set – then the radio is silent); the radio restarts
+  $('meshRegionGo').addEventListener('click', async () => {
+    const code = P.REGIONS[$('meshRegionSel').value];
+    if (!code || state !== 'connected' || !myNode) return;
+    try {
+      await write(P.adminSetRegion(myNode, loraRaw || new Uint8Array(0), code));
+      region = code;
+      render();
+      toast('Region set – the radio restarts and is on the mesh then.', 8000);
+    } catch (e) { toast('Region not set: ' + e.message); }
+  });
+
   // ---------------- Receiving ----------------
 
   function handle(buf) {
     let m;
     try { m = P.parseFromRadio(buf); } catch (e) { return; }
     if (m.kind === 'myInfo') myNode = m.nodeNum;
+    else if (m.kind === 'config' && m.lora) { loraRaw = m.lora; region = m.region; }
     else if (m.kind === 'channel') {
       if (m.channel.role) channels = channels.filter(c => c.index !== m.channel.index).concat(m.channel).sort((a, b) => a.index - b.index);
     } else if (m.kind === 'nodeInfo') {
@@ -271,7 +286,7 @@
       retry = 0;
       if (!channels.some(c => c.index === cfg.channel)) { cfg.channel = 0; save(); }
       setState('connected');
-      toast('Meshtastic connected: ' + (cfg.name || 'radio'));
+      toast(region === 0 ? 'Meshtastic connected – but the LoRa region is NOT set: the radio is silent. Set it under Meshtastic.' : 'Meshtastic connected: ' + (cfg.name || 'radio'), region === 0 ? 10000 : undefined);
       lastPli = 0; // send our position right away
       tick();
     } else if (m.kind === 'rebooted') {

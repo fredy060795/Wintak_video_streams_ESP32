@@ -1149,12 +1149,12 @@ async function handleEudApi(req, res, route) {
   }
   // TAKweb for the flash of a Meshtastic radio (lib/meshsite.js, public/eud/meshinstall.js): list and files (gzipped)
   if (route === 'meshsite' && req.method === 'GET') {
-    const b = meshsite.build(VERSION);
+    const b = meshsite.build(VERSION, publicBase(req) + '/eud/', new URL(req.url, 'http://x').searchParams.get('map'));
     return json(res, 200, { version: b.version, total: b.total, files: b.files.map(f => ({ name: f.name, size: f.size, gz: f.gz.length })) });
   }
   // the same as one ZIP (<name>.gz files) – for the Meshtastic desktop flasher, offline
   if (route === 'meshsite.zip' && req.method === 'GET') {
-    const b = meshsite.build(VERSION);
+    const b = meshsite.build(VERSION, publicBase(req) + '/eud/', new URL(req.url, 'http://x').searchParams.get('map'));
     const entries = Object.fromEntries(b.files.map(f => [f.name + '.gz', f.gz]));
     entries['takweb-mesh.json'] = JSON.stringify({ version: b.version, files: b.files.map(f => f.name) });
     const z = zip(entries);
@@ -1163,7 +1163,7 @@ async function handleEudApi(req, res, route) {
   }
   const msf = /^meshsite\/([\w.-]+)$/.exec(route);
   if (msf && req.method === 'GET') {
-    const f = meshsite.build(VERSION).files.find(x => x.name === msf[1]);
+    const f = meshsite.build(VERSION, publicBase(req) + '/eud/', new URL(req.url, 'http://x').searchParams.get('map')).files.find(x => x.name === msf[1]);
     if (!f) return json(res, 404, { error: 'Not found' });
     res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Length': f.gz.length, 'Cache-Control': 'no-cache' });
     return res.end(f.gz);

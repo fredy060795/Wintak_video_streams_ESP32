@@ -8,15 +8,17 @@
   const kb = n => Math.round(n / 1024) + ' KB';
   let busy = false;
 
+  const mapQ = () => ($('mfMap').checked ? '?map=full' : '');
   async function loadPackage() {
-    const r = await fetch('/api/eud/meshsite');
+    const r = await fetch('/api/eud/meshsite' + mapQ());
     if (!r.ok) throw new Error('Package not available (' + r.status + ')');
     return r.json();
   }
-  document.addEventListener('admin-view', async e => {
-    if (e.detail !== 'mesh') return;
+  async function showSize() {
     try { const p = await loadPackage(); $('mfSize').textContent = `TAKweb ${p.version} for the radio: ${p.files.length} files, ${kb(p.total)} on the flash`; } catch (err) { $('mfSize').textContent = err.message; }
-  });
+  }
+  document.addEventListener('admin-view', e => { if (e.detail === 'mesh') showSize(); });
+  $('mfMap').addEventListener('change', showSize);
 
   $('mfGo').addEventListener('click', async () => {
     if (busy) return;
@@ -36,7 +38,7 @@
       const pkg = await loadPackage();
       const files = [];
       for (const f of pkg.files) {
-        const r = await fetch('/api/eud/meshsite/' + encodeURIComponent(f.name));
+        const r = await fetch('/api/eud/meshsite/' + encodeURIComponent(f.name) + mapQ());
         if (!r.ok) throw new Error(f.name + ': ' + r.status);
         files.push({ name: f.name, gz: new Uint8Array(await r.arrayBuffer()) });
       }

@@ -388,8 +388,9 @@
       <p class="mut small">iPhone: the hotspot has the phone's name (Settings → General → About → Name) and its password under
         Settings → Personal Hotspot. Android: Settings → Network → Hotspot. While WLAN is on, the radio's Bluetooth is off; change
         the WLAN again here over USB.</p>
+      <label class="small"><input type="checkbox" id="mfMap"> Detailed world map (~330 KB more – only radios with 8 MB flash: Heltec V3, XIAO ESP32-S3, T-Beam S3, T3S3). Without it a smaller world map (countries, bigger cities) is put on the radio.</label>
       <div class="row"><button type="button" class="pri" id="mfGo">⚡ Connect radio (USB) and install TAKweb</button><span class="mut small" id="mfSize"></span></div>
-      <p class="mut small">Without Chrome/Edge or offline: <a href="/api/eud/meshsite.zip" download>download the package (ZIP)</a> and put it
+      <p class="mut small">Without Chrome/Edge or offline: <a href="/api/eud/meshsite.zip" download>download the package (ZIP)</a> (<a href="/api/eud/meshsite.zip?map=full" download>with the detailed world map</a>) and put it
         on the radio with the MeshtasticDesktop flasher (section “4. TAKweb aufs Gerät”).</p>
       <div class="mf-bar hidden" id="mfBar"><div id="mfFill"></div></div>
       <p class="msg" id="mfMsg"></p>

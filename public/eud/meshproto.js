@@ -191,7 +191,12 @@
     if (has(f, 8)) return { kind: 'rebooted' };
     if (has(f, 12)) { const x = sub(f, 12); return { kind: 'xmodem', control: u32(x, 1), seq: u32(x, 2) }; }
     if (has(f, 15)) { const x = sub(f, 15); return { kind: 'fileInfo', name: str(x, 1), size: u32(x, 2) }; }
-    if (has(f, 5)) { const c = bytes(f, 5); const cf = decode(c); return { kind: 'config', network: bytes(cf, 4) }; }
+    if (has(f, 5)) {
+      const cf = decode(bytes(f, 5));
+      const lora = has(cf, 6) ? (bytes(cf, 6) || new Uint8Array(0)) : null;
+      // LoRaConfig.region (7): 0 = UNSET – then the radio neither sends nor receives
+      return { kind: 'config', network: bytes(cf, 4), lora, region: lora ? u32(decode(lora), 7) : undefined };
+    }
     return { kind: 'other' };
   }
 
@@ -295,6 +300,12 @@
       net.uint(7, 1).msg(8, new Writer().fixed(1, ipU32(s.ip)).fixed(2, ipU32(s.gateway)).fixed(3, ipU32(s.subnet)).fixed(4, ipU32(s.dns)));
     }
     return adminPacket(node, new Writer().msg(34, new Writer().msg(4, net)));
+  }
+  // LoRa region (Config.lora = 6, LoRaConfig.region = 7), the other LoRa settings stay
+  const REGIONS = { US: 1, EU_433: 2, EU_868: 3, CN: 4, JP: 5, ANZ: 6, KR: 7, TW: 8, RU: 9, IN: 10, NZ_865: 11, TH: 12, UA_433: 14, UA_868: 15, MY_433: 16, MY_919: 17, SG_923: 18, UK_868: 23 };
+  function adminSetRegion(node, loraRaw, region) {
+    const lora = withoutFields(loraRaw, [7]).uint(7, region);
+    return adminPacket(node, new Writer().msg(34, new Writer().msg(6, lora)));
   }
   const adminReboot = (node, seconds = 2) => adminPacket(node, new Writer().int(97, seconds));
 
@@ -560,7 +571,7 @@
   }
 
   return {
-    XMODEM, crc16, sha256, toRadioXmodem, adminSetWifi, adminReboot, withoutFields, IPHONE_IP, ipU32, staticNet,
+    XMODEM, crc16, sha256, toRadioXmodem, adminSetWifi, adminReboot, adminSetRegion, REGIONS, withoutFields, IPHONE_IP, ipU32, staticNet,
     voicePackets, voiceRequest, parseVoice, VoiceAssembler, VOICE_CHUNK,
     PORT, BROADCAST, ALL_CHAT, TEAMS, ROLES, FOUNTAIN, Writer, decode,
     wantConfig, toRadioPacket, takPli, takChat, parseTak, parseFromRadio, parseUserPayload, parsePositionPayload,
