@@ -49,10 +49,15 @@ function showDevice() {
   $('fwGo').disabled = !d.esp;
   if (!d.esp) info.append(' – not an ESP32: download the .uf2 and copy it onto the radio (double-tap reset → USB drive).');
 }
+let loading = null;
 async function load(keep) {
-  try { versions = (await api('firmware')).versions; } catch (e) { versions = []; setMsg($('fwMsg'), e.message); }
-  fillVersions(keep);
+  loading = (async () => {
+    try { versions = (await api('firmware')).versions; } catch (e) { versions = []; setMsg($('fwMsg'), e.message); }
+    fillVersions(keep);
+  })();
+  return loading;
 }
+const afterLoad = fn => setTimeout(() => Promise.resolve(loading).then(fn), 0);
 document.addEventListener('admin-view', e => { if (e.detail === 'mesh') load($('fwVer').value); });
 $('fwVer').addEventListener('change', fillDevices);
 $('fwDev').addEventListener('change', showDevice);
@@ -232,20 +237,36 @@ async function loadSetupChannels() {
     new Option('public default channel (LongFast)', ''));
   if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
 }
-document.addEventListener('admin-view', e => { if (e.detail === 'mesh') loadSetupChannels(); });
+document.addEventListener('admin-view', e => { if (e.detail === 'mesh') { loadSetupChannels(); afterLoad(autoFirmware); } });
 
+// the newest TAKweb firmware from GitHub into the library – by itself when the library has none or an older build
+const CHIPS = ['esp32s3', 'esp32'];
+let autoTried = false;
+async function fetchTakweb(auto) {
+  const { releases } = await api('firmware/releases');
+  const rel = releases.filter(r => r.takweb).sort((a, b) => String(b.published).localeCompare(String(a.published)))[0];
+  if (!rel) throw new Error('No TAKweb firmware on GitHub yet – import the firmware file instead.');
+  const have = takwebVersion();
+  const fresh = have && have.release && have.release.tag === rel.tag &&
+    rel.assets.filter(a => CHIPS.includes(a.chip)).every(a => have.release.assets && have.release.assets[a.chip] === a.updated);
+  if (auto && fresh) return false;
+  suSay(have ? 'Loading the newer TAKweb firmware … (about a minute)' : 'Loading the TAKweb firmware once … (about a minute)');
+  $('suGo').disabled = true;
+  const r = await api('firmware/fetch', { method: 'POST', body: { tag: rel.tag, chips: CHIPS } });
+  versions = r.versions;
+  fillVersions();
+  suSay('TAKweb firmware ready. Choose the radio and press the button.');
+  return true;
+}
+async function autoFirmware() {
+  if (autoTried || busy) return;
+  autoTried = true;
+  try { await fetchTakweb(true); } catch (e) { if (!takwebVersion()) suSay(e.message + ' – or import the firmware file.', false); }
+  fillSetup();
+}
 $('suFetch').addEventListener('click', async () => {
-  suSay('Loading the TAKweb firmware from GitHub … (about a minute)');
   $('suFetch').disabled = true;
-  try {
-    const { releases } = await api('firmware/releases');
-    const rel = releases.filter(r => r.takweb).sort((a, b) => String(b.published).localeCompare(String(a.published)))[0];
-    if (!rel) throw new Error('No TAKweb firmware release on GitHub yet – import the file instead.');
-    const r = await api('firmware/fetch', { method: 'POST', body: { tag: rel.tag, chips: ['esp32s3', 'esp32'] } });
-    versions = r.versions;
-    fillVersions();
-    suSay('TAKweb firmware loaded. Choose the radio and press 2.');
-  } catch (e) { suSay(e.message, false); }
+  try { await fetchTakweb(false); } catch (e) { suSay(e.message, false); }
   $('suFetch').disabled = false;
 });
 $('suImport').addEventListener('click', () => $('fwZip').click());
@@ -342,4 +363,4 @@ $('suGo').addEventListener('click', async () => {
 });
 
 // page opened right on the Meshtastic view (the view event came before this module)
-if (document.querySelector('[data-nav="mesh"].on')) { load(); loadSetupChannels(); }
+if (document.querySelector('[data-nav="mesh"].on')) { load(); loadSetupChannels(); afterLoad(autoFirmware); }
