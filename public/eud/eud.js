@@ -87,6 +87,22 @@ const PUBLIC_TILES = {
   esritopo: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
 };
 if (MESH_ONLY) document.body.classList.add('mesh-only');
+// on the radio: a link to the TAKweb server that tells it about this radio – TAKweb online then talks to the mesh
+// through this radio over WLAN (Meshtastic → "Radio over WLAN"), login/QR/video come from the server
+function radioLink(u) {
+  const x = new URL(u, location.href);
+  const h = new URLSearchParams(x.hash.slice(1));
+  h.set('radio', location.origin);
+  x.hash = h.toString();
+  return x.href;
+}
+// on the radio: its small web server can drop a file now and then – then a part of TAKweb is missing: offer a reload
+if (MESH_ONLY) {
+  window.addEventListener('load', () => setTimeout(() => {
+    const missing = [!window.meshProto && 'meshproto.js', !window.eudMeshReady && 'mesh.js', !window.L && 'leaflet.js'].filter(Boolean);
+    if (missing.length && confirm(`Part of TAKweb did not load from the radio (${missing.join(', ')}). Load the page again?`)) location.reload();
+  }, 1500));
+}
 if (!SOURCES[profile.tiles] && profile.tiles !== 'custom') profile.tiles = 'osm';
 
 function sourceTemplate(id) {
@@ -454,7 +470,7 @@ if (MESH_ONLY) {
     if (!u) return $('srvWeb').focus();
     if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
     store.set('eud.webUrl', u);
-    window.open(u, '_blank', 'noopener');
+    location.href = radioLink(u);
   });
 }
 
@@ -1925,6 +1941,8 @@ let draft = null;
 let draftOrig = null;
 
 function openEdit(srv) {
+  // on the radio (mesh only) there is no TAKweb server behind the page: servers are reached through the TAKweb server
+  if (MESH_ONLY) return openPopup('server');
   draftOrig = srv;
   draft = srv ? JSON.parse(JSON.stringify(srv)) : newServer();
   openPopup('edit', srv ? 'Edit server' : 'Add server');
@@ -2212,6 +2230,7 @@ function parseQr(text) {
 
 // apply server data: into the open draft, otherwise into the matching or a new server
 async function applyConfig(cfg, auto) {
+  if (MESH_ONLY) { openPopup('server'); return; } // see openEdit
   if (!draft || popupSec !== 'edit') {
     const existing = servers.find(s => s.host === cfg.host && (!cfg.port || s.port === cfg.port));
     openEdit(existing || null);
@@ -2256,6 +2275,12 @@ function decodeImage(source, w, h) {
 }
 function onQr(text) {
   stopScan();
+  // on the radio: an invitation link of a TAKweb server opens that server (its certificate request needs it)
+  if (MESH_ONLY && /^https?:\/\//i.test(text)) {
+    try { store.set('eud.webUrl', new URL(text).origin + '/eud/'); } catch (e) { /* keep */ }
+    location.href = radioLink(text);
+    return;
+  }
   try {
     applyConfig(parseQr(text), true);
   } catch (e) {
@@ -2712,9 +2737,12 @@ let permAsked = false;
 // on the radio's own WLAN the page may come over http (captive portal, http://takweb/): the browser then gives no
 // position, compass or microphone – offer the same page over https (the radio's self-signed certificate, once)
 const insecureRadio = () => MESH_ONLY && !window.isSecureContext && location.protocol === 'http:';
+let radioOnline = false; // on the radio: the TAKweb server is reachable – "TAKweb online" is offered instead
 function updatePermBar() {
   if (insecureRadio()) {
-    $('permBar').classList.remove('hidden');
+    // online the full TAKweb has position, camera and microphone – then only the "TAKweb online" bar shows
+    $('permBar').classList.toggle('hidden', radioOnline);
+    if (radioOnline) return;
     $('permGo').textContent = 'HTTPS';
     $('permText').textContent = 'Opened over http – here the browser gives no own position, compass or microphone (mesh, map and chat work). '
       + 'HTTPS opens the same page securely; accept the radio\'s certificate once (Advanced → continue).';
@@ -2751,6 +2779,36 @@ $('permGo').addEventListener('click', () => {
   setTimeout(updatePermBar, 1500);
 });
 $('permClose').addEventListener('click', () => $('permBar').classList.add('hidden'));
+
+// on the radio: is the TAKweb server reachable (the phone's mobile data)? Then offer TAKweb online
+if (MESH_ONLY) {
+  let webUrl = '', invite = '', closed = false, onRadio = null;
+  // set up in the admin: takweb-server.json on the radio holds the server and (optionally) this radio's TAK user
+  const radioFile = () => onRadio || (onRadio = fetch('takweb-server.json', { cache: 'no-store' }).then(r => (r.ok ? r.json() : {})).catch(() => ({})));
+  const serverUrl = async () => {
+    if (webUrl) return webUrl;
+    const j = await radioFile();
+    invite = j.invite || '';
+    return (webUrl = store.get('eud.webUrl', '') || window.TAKWEB_SERVER || j.server || '');
+  };
+  async function checkOnline() {
+    const u = await serverUrl();
+    if (!u || closed) return;
+    if (!$('srvWeb').value) $('srvWeb').value = u;
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 6000);
+    let ok = false;
+    try { await fetch(new URL('icon-192.png?ping=' + Date.now(), u), { mode: 'no-cors', cache: 'no-store', signal: ctl.signal }); ok = true; } catch (e) { /* offline */ }
+    clearTimeout(t);
+    $('onlineBar').classList.toggle('hidden', !ok || closed);
+    radioOnline = ok && !closed;
+    updatePermBar();
+  }
+  setTimeout(checkOnline, 2500);
+  setInterval(checkOnline, 20000);
+  // with the radio's TAK user: the invitation logs in by itself (certificate request on the server's page)
+  $('onlineGo').addEventListener('click', async () => { const u = await serverUrl(); if (u) location.href = radioLink(invite || u); });
+  $('onlineClose').addEventListener('click', () => { closed = true; $('onlineBar').classList.add('hidden'); });
+}
 updatePermBar();
 // app: should the WebView still want the compass allowed, quietly with the first tap (no bar)
 if (nativeApp && !compassAllowed) document.addEventListener('pointerup', () => askCompass(), { once: true, capture: true });

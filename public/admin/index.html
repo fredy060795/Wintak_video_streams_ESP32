@@ -373,10 +373,15 @@
     <section class="card" data-view="mesh">
       <h2>Set up a radio with TAKweb <span class="mut small">(Chrome/Edge on a PC, radio on USB)</span></h2>
       <p class="mut small">One step puts everything on the radio: Meshtastic, TAKweb, LoRa region EU_868 and your mesh channel.
-        Afterwards: phone → WLAN <b>TAKweb</b> (password 12345678) → <b>https://takweb.local</b>.</p>
+        Afterwards: phone → the radio's WLAN (<b>TAKweb-xxxx</b> or the name chosen below) → <b>https://takweb.local</b>.</p>
       <div class="row">
         <div class="grow"><label>1. Which radio?</label><select id="suDev"></select></div>
         <div class="grow"><label>Mesh channel</label><select id="suChan"></select></div>
+        <div class="grow"><label>TAK user on the radio</label><select id="suUser"></select></div>
+      </div>
+      <div class="row">
+        <div class="grow"><label>WLAN name of the radio (empty = automatic, e.g. TAKweb-8E1B)</label><input id="suSsid" maxlength="32" placeholder="automatic: TAKweb-xxxx" autocomplete="off"></div>
+        <div class="grow"><label>WLAN password (8–63 characters, empty = open WLAN)</label><input id="suPsk" maxlength="63" value="12345678" autocomplete="off"></div>
       </div>
       <p class="mut small" id="suNote"></p>
       <div class="row hidden" id="suLoad"><button type="button" class="pri" id="suFetch">Load the TAKweb firmware (GitHub)</button><button type="button" id="suImport">… or import a firmware file (ZIP)</button></div>

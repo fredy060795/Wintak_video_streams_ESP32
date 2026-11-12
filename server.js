@@ -348,6 +348,13 @@ function mailAdmin(subject, text, notTo) {
   return sendMail(store.data.smtp, { to, subject, text }).then(() => true).catch(e => { log('E-mail failed:', e.message); return false; });
 }
 const accessLink = (req, u) => `${publicBase(req)}/access/#t=${u.token}`;
+// TAKweb invitation of a TAK user (like the user's EUD QR code): …/eud/#host=…&username=…&password=… – the
+// page requests the certificate with it by itself
+function eudInvite(req, u) {
+  const o = takUsers.t.ots;
+  const p = new URLSearchParams({ host: takUsers.takHost(), port: o.streamPort, proto: 'ssl', enroll: o.enrollPort, username: u.username, password: u.password, callsign: u.callsign, t: u.token });
+  return `${publicBase(req)}/eud/#${p}`;
+}
 
 function requestMail(u, link) {
   return `Hello ${u.name},\n\nthank you – your registration request for TAKweb has been received.\n\n`
@@ -1152,7 +1159,7 @@ async function handleEudApi(req, res, route) {
   // TAKweb for the flash of a Meshtastic radio (lib/meshsite.js, public/eud/meshinstall.js): list and files (gzipped)
   if (route === 'meshsite' && req.method === 'GET') {
     const b = meshsite.build(VERSION, publicBase(req) + '/eud/', new URL(req.url, 'http://x').searchParams.get('map'));
-    return json(res, 200, { version: b.version, total: b.total, files: b.files.map(f => ({ name: f.name, size: f.size, gz: f.gz.length })) });
+    return json(res, 200, { version: b.version, total: b.total, server: publicBase(req) + '/eud/', files: b.files.map(f => ({ name: f.name, size: f.size, gz: f.gz.length })) });
   }
   // the same as one ZIP (<name>.gz files) – for the Meshtastic desktop flasher, offline
   if (route === 'meshsite.zip' && req.method === 'GET') {
@@ -1472,6 +1479,25 @@ async function handleAdminApi(req, res, route) {
     store.save();
     broadcastMapClear();
     return json(res, 200, { request: null, devices: takLinks.size });
+  }
+  // radios set up in the admin get their own TAK user: the invitation goes onto the radio (Meshtastic → set up a radio)
+  if (route === 'mesh-users' && method === 'GET') {
+    const users = Object.values(takUsers.t.users).filter(u => u.status === 'active' && u.username && u.password)
+      .map(u => ({ id: u.id, callsign: u.callsign, username: u.username })).sort((a, b) => a.callsign.localeCompare(b.callsign));
+    return json(res, 200, { ots: takUsers.otsConfigured(), users });
+  }
+  if (route === 'mesh-invite' && method === 'POST') {
+    const body = await readJson(req);
+    let u = body.id ? Object.values(takUsers.t.users).find(x => x.id === String(body.id)) : null;
+    try {
+      if (!u) {
+        const callsign = String(body.callsign || '').trim() || 'MESH-' + crypto.randomBytes(2).toString('hex').toUpperCase();
+        u = await takUsers.createDirect({ callsign, role: 'Team Member' });
+        log('Admin: TAK user for a radio created', u.username);
+      }
+      if (!u.username || !u.password) return json(res, 400, { error: 'This user has no login stored in TAKweb.' });
+      return json(res, 200, { invite: eudInvite(req, u), user: { id: u.id, callsign: u.callsign, username: u.username } });
+    } catch (e) { return json(res, 400, { error: e.message }); }
   }
   if (route === 'eud-links' && method === 'GET') {
     return json(res, 200, { links: [...takLinks.values()].map(l => l.info()) });

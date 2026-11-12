@@ -25,6 +25,15 @@
   // TAKweb loaded from the radio itself (mesh-only page on its flash): talk to it over WLAN, no Bluetooth needed
   const ON_RADIO = !!window.TAKWEB_MESH;
   if (ON_RADIO) Object.assign(cfg, { enabled: true, transport: 'http', http: '', name: cfg.name || 'This radio (WLAN)' });
+  // TAKweb online opened from a radio's page (…/eud/#radio=https://takweb.local): use that radio over WLAN
+  else {
+    const radio = new URLSearchParams((typeof launchHash === 'string' ? launchHash : location.hash).slice(1)).get('radio');
+    if (radio && /^https?:\/\/[\w.-]+(:\d+)?$/i.test(radio)) {
+      Object.assign(cfg, { enabled: true, transport: 'http', http: radio, name: 'TAKweb radio (' + new URL(radio).host + ')' });
+      store.set('eud.mesh', cfg);
+      if (!/(^|[#&])host=/.test(location.hash)) history.replaceState(null, '', location.pathname);
+    }
+  }
   // default: always also over the mesh – otherwise devices without internet miss what online users send.
   // The old default "offline" is switched over unless the user chose it himself.
   if (cfg.send !== 'always' && !cfg.sendChosen) cfg.send = 'always';
@@ -71,12 +80,13 @@
       ? [prim ? (prim.name || (usePreset ? 'LongFast (default channel)' : 'unnamed')) : '', usePreset ? (P.PRESETS[preset] || '') : 'custom LoRa', regName, keyText].filter(Boolean).join(' · ')
       : '–';
     $('meshSending').textContent = state !== 'connected' ? '–' : shouldSend() ? 'Yes (LoRa)' : 'No – TAK server connected';
-    $('meshPick').classList.toggle('hidden', ON_RADIO || ['connected', 'connecting', 'paused'].includes(state));
+    $('meshPick').classList.toggle('hidden', ['connected', 'connecting', 'paused'].includes(state));
     $('meshWlan').classList.toggle('hidden', ON_RADIO || ['connected', 'connecting'].includes(state));
     if (!$('meshHttp').value && cfg.http) $('meshHttp').value = cfg.http;
-    $('meshPick').textContent = cfg.enabled && cfg.name ? 'RECONNECT ' + cfg.name : 'CONNECT MESHTASTIC RADIO';
+    $('meshPick').textContent = ON_RADIO ? 'CONNECT THIS RADIO' : cfg.enabled && cfg.name ? 'RECONNECT ' + cfg.name : 'CONNECT MESHTASTIC RADIO';
     $('meshOff').classList.toggle('hidden', !cfg.enabled);
-    $('meshNew').classList.toggle('hidden', !cfg.id || state === 'connecting');
+    // on the radio's page also another radio over Bluetooth (Chrome on Android)
+    $('meshNew').classList.toggle('hidden', ON_RADIO ? !navigator.bluetooth || state === 'connecting' : !cfg.id || state === 'connecting');
     $('meshBt').classList.toggle('hidden', ON_RADIO || !!navigator.bluetooth);
     $('meshBluefy').classList.toggle('hidden', ON_RADIO || !!navigator.bluetooth || !isIOS);
     $('meshSend').value = cfg.send;
@@ -831,6 +841,13 @@
 
   // known radio: reconnect; after a reload without permission (or a new radio): the browser's device dialog
   $('meshPick').addEventListener('click', () => {
+    if (ON_RADIO) { // the radio that serves this page, over WLAN
+      disconnect();
+      Object.assign(cfg, { enabled: true, transport: 'http', http: '' });
+      save();
+      retry = 0;
+      return open();
+    }
     if (cfg.transport === 'http') { cfg.transport = 'ble'; save(); }
     if (!device) return pick();
     cfg.enabled = true;
@@ -875,6 +892,7 @@
     try { await navigator.clipboard.writeText(location.href); toast('Link copied – open it in Bluefy.'); } catch (e) { toast(location.href, 8000); }
   });
   $('meshBtn').addEventListener('click', () => openPopup('mesh'));
+  window.eudMeshReady = true; // the page checks that this part loaded (the radio's web server can drop files)
   document.addEventListener('eud-popup', e => { if (e.detail === 'mesh') { msg(''); render(); } });
 
   render();
