@@ -380,7 +380,10 @@
       </div>
       <p class="mut small" id="suNote"></p>
       <div class="row hidden" id="suLoad"><button type="button" class="pri" id="suFetch">Load the TAKweb firmware (GitHub)</button><button type="button" id="suImport">… or import a firmware file (ZIP)</button></div>
-      <div class="row"><button type="button" class="pri su-go" id="suGo">2. Connect the radio and set it up</button></div>
+      <div class="row"><button type="button" class="pri su-go" id="suGo">2. Connect the radio and set it up</button>
+        <button type="button" id="suBoot" title="Puts many radios into boot mode, like the Meshtastic web flasher">Boot mode (1200 bps reset)</button></div>
+      <p class="mut small">Radio not found? Make sure it is connected over USB with a data cable. ESP32-S3 radios (XIAO, Heltec V3):
+        hold the BOOT / USR button while plugging in the USB cable – or try "Boot mode (1200 bps reset)", then press 2 again.</p>
       <div class="mf-bar hidden" id="suBar"><div id="suFill"></div></div>
       <p class="msg su-msg" id="suMsg"></p>
       <pre class="mf-log hidden" id="suLog"></pre>
@@ -398,7 +401,7 @@
           <label class="check"><input type="radio" name="fwMode" value="full"> Full install (erases the flash – needed for the TAKweb firmware the first time)</label>
           <label class="check">Speed <select id="fwBaud" class="sm-select"><option>921600</option><option>460800</option><option>115200</option></select></label>
         </div>
-        <div class="row"><button type="button" class="pri" id="fwGo">⚡ Connect radio (USB) and flash</button></div>
+        <div class="row"><button type="button" class="pri" id="fwGo">⚡ Connect radio (USB) and flash</button><button type="button" id="fwBoot">Boot mode (1200 bps reset)</button></div>
         <div class="mf-bar hidden" id="fwBar"><div id="fwFill"></div></div>
         <p class="msg" id="fwMsg"></p>
         <pre class="mf-log hidden" id="fwLog"></pre>
