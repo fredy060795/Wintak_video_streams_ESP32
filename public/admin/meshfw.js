@@ -246,7 +246,18 @@ async function loadSetupUsers() {
     ...r.users.map(u => new Option(`${u.callsign} (${u.username})`, u.id)), new Option('none – the user logs in himself', ''));
   if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
 }
-document.addEventListener('admin-view', e => { if (e.detail === 'mesh') { loadSetupChannels(); loadSetupUsers(); afterLoad(autoFirmware); } });
+// MQTT of the OTS for the radios (address editable; the login is a TAKweb-made OTS user, not the admin's)
+let mqttInfo = { address: '' };
+async function loadSetupMqtt() {
+  try { mqttInfo = await api('mesh-mqtt'); } catch (e) { mqttInfo = { ots: false, error: e.message }; }
+  $('suMqtt').disabled = !mqttInfo.ots;
+  if (!mqttInfo.ots) $('suMqtt').checked = false;
+  if (mqttInfo.address && !$('suMqttAddr').value) $('suMqttAddr').value = mqttInfo.address;
+  $('suMqttAddr').classList.toggle('hidden', !$('suMqtt').checked);
+}
+$('suMqtt').addEventListener('change', () => $('suMqttAddr').classList.toggle('hidden', !$('suMqtt').checked));
+$('suRole').addEventListener('change', () => $('suGwRow').classList.toggle('hidden', $('suRole').value !== 'gateway'));
+document.addEventListener('admin-view', e => { if (e.detail === 'mesh') { loadSetupChannels(); loadSetupUsers(); loadSetupMqtt(); afterLoad(autoFirmware); } });
 
 // the newest TAKweb firmware from GitHub into the library – by itself when the library has none or an older build
 const CHIPS = ['esp32s3', 'esp32'];
@@ -298,7 +309,7 @@ async function radioPortAgain(old, info, ms = 40000) {
 
 // after the flash, over the radio's serial API (Meshtastic runs now; waits for its first start): the address of this
 // TAKweb server (the radio page offers "TAKweb online" with it) and the mesh channel
-async function finishRadio(port, url, server, invite, ap) {
+async function finishRadio(port, url, server, invite, ap, net = {}) {
   let inst = null;
   const link = new MI.SerialLink(port, frame => { try { inst.feed(P.parseFromRadio(frame)); } catch (e) { /* not for us */ } });
   inst = new MI.RadioInstaller({ P, send: b => link.send(b), log: t => log(t + '\n') });
@@ -328,9 +339,23 @@ async function finishRadio(port, url, server, invite, ap) {
       log(`Channel set: ${r.names.join(', ')}\n`);
       names = r.names;
     }
+    // GPS on, position every 2 min (moving: sooner) – the radio reports itself, also without a phone
+    await link.send(P.adminSetPosition(st.node, inst.position, { secs: net.gateway ? 900 : 120 }));
+    log('GPS on, position every ' + (net.gateway ? '15 min' : '2 min') + ' (board pins)\n');
+    await sleep(300);
+    if (net.mqtt) { // the mesh to the server: every radio that has internet passes positions and messages on
+      await link.send(P.adminSetMqtt(st.node, net.mqtt));
+      log(`MQTT to the server: ${net.mqtt.address} (${net.mqtt.username})\n`);
+      await sleep(300);
+    }
+    if (net.gateway) { // HQ gateway: internet over the HQ WLAN (its own WLAN stays)
+      await link.send(P.adminSetWifi(st.node, inst.network, { ssid: net.gateway.ssid, psk: net.gateway.psk }));
+      log(`Internet WLAN of the gateway: ${net.gateway.ssid}\n`);
+      await sleep(300);
+    }
     await sleep(800);
     await link.send(P.adminReboot(st.node, 2)); // the new WLAN name/password take effect after the restart
-    return { names, ssid };
+    return { names, ssid, node: st.node };
   } finally { await link.close(); }
 }
 
@@ -339,6 +364,8 @@ $('suGo').addEventListener('click', async () => {
   const d = v && v.devices.find(x => x.target === $('suDev').value);
   if (busy || !d) return;
   if (!('serial' in navigator)) return suSay('This browser cannot reach USB radios – use Chrome or Edge on a PC.', false);
+  if ($('suRole').value === 'gateway' && !$('suGwSsid').value.trim()) return suSay('The HQ gateway needs the HQ WLAN (internet) name.', false);
+  if ($('suMqtt').checked && !$('suMqtt').disabled && !$('suChan').value) return suSay('For MQTT choose the mesh channel of the OTS (its link has the uplink to the server).', false);
   if ($('suPsk').value && $('suPsk').value.length < 8) return suSay('The WLAN password needs at least 8 characters (or leave it empty for an open WLAN).', false);
   if (new TextEncoder().encode($('suSsid').value.trim()).length > 32) return suSay('The WLAN name may have at most 32 characters.', false);
   if (!confirm(`${radioName(d)} is set up new: Meshtastic, TAKweb and the mesh channel. Its old settings and nodes are replaced.\n\nConnect the radio with a USB data cable, then press OK and choose it in the list.`)) return;
@@ -346,6 +373,8 @@ $('suGo').addEventListener('click', async () => {
   try { port = await navigator.serial.requestPort(); } catch (e) { return; } // list closed
   const info = port.getInfo(), chan = $('suChan').value;
   const ap = { ssid: $('suSsid').value.trim(), psk: $('suPsk').value };
+  const gateway = $('suRole').value === 'gateway' ? { ssid: $('suGwSsid').value.trim(), psk: $('suGwPsk').value } : null;
+  const wantMqtt = $('suMqtt').checked && !$('suMqtt').disabled;
   busy = true;
   logTo = 'suLog';
   $('suGo').disabled = true;
@@ -387,7 +416,16 @@ $('suGo').addEventListener('click', async () => {
     await sleep(6000);
     const p2 = await radioPortAgain(port, info);
     suBar(90);
-    ({ names, ssid } = await finishRadio(p2, chan, server, invite, ap));
+    let mqtt = null;
+    if (wantMqtt) {
+      if ($('suMqttAddr').value.trim() !== mqttInfo.address) await api('mesh-mqtt', { method: 'POST', body: { address: $('suMqttAddr').value.trim(), tls: true } });
+      const m = await api('mesh-mqtt/login', { method: 'POST', body: {} });
+      mqtt = { address: m.address, username: m.username, password: m.password, root: m.root, tls: m.tls };
+    }
+    let node;
+    ({ names, ssid, node } = await finishRadio(p2, chan, server, invite, ap, { mqtt, gateway }));
+    // known in admin → Network (role, WLAN name) by its node id
+    api('mesh-radios', { method: 'POST', body: { node: P.nodeId(node), name: radioName(d), ssid, role: gateway ? 'gateway' : 'field', mqtt: !!mqtt } }).catch(() => {});
     if (who) loadSetupUsers();
     suBar(100);
     suSay(`Done! ${radioName(d)} has TAKweb${names.length ? ', the mesh channel ' + names.join(', ') : ''}${who ? ' and the TAK user ' + who.callsign : ''}. On the phone: WLAN "${ssid}"${ap.psk ? ` (password ${ap.psk})` : ' (open)'} → https://takweb.local – accept the certificate once${who ? '; with internet "TAKWEB ONLINE" logs in by itself' : ''}.`);
@@ -401,4 +439,4 @@ $('suGo').addEventListener('click', async () => {
 });
 
 // page opened right on the Meshtastic view (the view event came before this module)
-if (document.querySelector('[data-nav="mesh"].on')) { load(); loadSetupChannels(); loadSetupUsers(); afterLoad(autoFirmware); }
+if (document.querySelector('[data-nav="mesh"].on')) { load(); loadSetupChannels(); loadSetupUsers(); loadSetupMqtt(); afterLoad(autoFirmware); }

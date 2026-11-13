@@ -95,6 +95,7 @@
     <a href="#links" data-nav="links"><span class="ic">🔗</span>Links &amp; QR codes</a>
     <a href="#mapclear" data-nav="mapclear" class="admin-only"><span class="ic">🧹</span>Clear map (all devices)</a>
     <a href="/hq/" target="_blank" rel="noopener" class="admin-only"><span class="ic">▣</span>HQ (opens a new window)</a>
+    <a href="#network" data-nav="network" class="admin-only"><span class="ic">🕸</span>Network (gateways, coverage)</a>
     <a href="#tracks" data-nav="tracks" class="admin-only"><span class="ic">◷</span>Mission tracks &amp; replay <span class="badge nb live" id="navRec"></span></a>
     <div class="side-h">TAK server</div>
     <a href="#otsusers" data-nav="otsusers"><span class="ic">🪪</span>OTS users</a>
@@ -380,6 +381,18 @@
         <div class="grow"><label>TAK user on the radio</label><select id="suUser"></select></div>
       </div>
       <div class="row">
+        <div class="grow"><label>Role</label><select id="suRole">
+          <option value="field">Field radio (GPS position to the server over the mesh)</option>
+          <option value="gateway">HQ gateway – always on, internet over the HQ WLAN, passes the mesh to the server</option>
+        </select></div>
+        <div class="grow"><label class="check"><input type="checkbox" id="suMqtt" checked> Positions &amp; messages to the server (MQTT) – also when no phone is connected</label>
+          <input id="suMqttAddr" placeholder="MQTT of the OTS, e.g. tak.example.org:8883" autocomplete="off"></div>
+      </div>
+      <div class="row hidden" id="suGwRow">
+        <div class="grow"><label>HQ WLAN (internet) name</label><input id="suGwSsid" maxlength="32" autocomplete="off"></div>
+        <div class="grow"><label>HQ WLAN password</label><input id="suGwPsk" maxlength="63" autocomplete="off"></div>
+      </div>
+      <div class="row">
         <div class="grow"><label>WLAN name of the radio (empty = automatic, e.g. TAKweb-8E1B)</label><input id="suSsid" maxlength="32" placeholder="automatic: TAKweb-xxxx" autocomplete="off"></div>
         <div class="grow"><label>WLAN password (8–63 characters, empty = open WLAN)</label><input id="suPsk" maxlength="63" value="12345678" autocomplete="off"></div>
       </div>
@@ -493,6 +506,39 @@
       </div>
       <p class="msg" id="mcMsg"></p>
       <p class="mut small" id="mcState"></p>
+    </section>
+
+    <section class="card" data-view="network">
+      <div class="row between"><h2>Network <span class="mut small">(how every device reaches the server – gateways, mesh-only, coverage)</span></h2><button id="nwReload" type="button">⟳</button></div>
+      <p class="mut small">Live from your TAK server (the HQ connection): which device is online over its own internet, which one only over
+        the mesh, and which devices are <b>gateways</b> – TAKweb phones with a radio and "gateway" on, and radios set up as
+        <b>HQ gateway</b> (MQTT). Lines show the way: <span class="nw-k lora"></span> LoRa → phone gateway,
+        <span class="nw-k mqtt"></span> LoRa → MQTT gateway (OTS does not say which radio uplinked – the nearest HQ gateway is
+        assumed). The coverage layer collects over time where internet worked, where only the mesh reached the server and
+        where connections broke off – so you see where gateways are needed.</p>
+      <p class="msg" id="nwMsg"></p>
+      <div class="nw-stats" id="nwStats"></div>
+      <div class="row nw-tools">
+        <label class="check"><input type="checkbox" id="nwCover" checked> Coverage over time</label>
+        <label class="check"><input type="checkbox" id="nwLines" checked> Connections</label>
+        <label class="check"><input type="checkbox" id="nwOffline"> Offline devices</label>
+        <button type="button" id="nwFit">Fit all</button>
+        <button type="button" class="danger" id="nwClear">Clear coverage history</button>
+      </div>
+      <div id="nwMap" class="tr-map nw-map"></div>
+      <div class="nw-legend">
+        <span><i class="nw-dot internet"></i>Internet (own connection)</span>
+        <span><i class="nw-dot gateway"></i>Gateway (phone or HQ radio)</span>
+        <span><i class="nw-dot mesh"></i>Mesh only</span>
+        <span><i class="nw-dot offline"></i>Offline</span>
+        <span><i class="nw-sq inet"></i>Internet worked here</span>
+        <span><i class="nw-sq mesh"></i>Only mesh here – gateway needed for internet</span>
+        <span><i class="nw-sq lost"></i>Connection broke off here</span>
+      </div>
+      <h3>Gateways</h3>
+      <table class="streams"><thead><tr><th>Gateway</th><th>Type</th><th>Passes on (15 min)</th><th>Last heard</th></tr></thead><tbody id="nwGws"></tbody></table>
+      <h3>Radios set up here</h3>
+      <table class="streams"><thead><tr><th>Radio</th><th>Node</th><th>Role</th><th>WLAN</th><th>Status</th><th></th></tr></thead><tbody id="nwRadios"></tbody></table>
     </section>
 
     <section class="card" data-view="tracks">
@@ -672,6 +718,7 @@
 <script src="/eud/vendor/leaflet.js"></script>
 <script src="/eud/vendor/milsymbol.js"></script>
 <script src="tracks.js"></script>
+<script src="network.js"></script>
 <script src="/eud/meshproto.js"></script>
 <script src="/eud/meshinstall.js"></script>
 <script src="meshflash.js"></script>

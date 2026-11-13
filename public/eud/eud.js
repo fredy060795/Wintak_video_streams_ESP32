@@ -1288,6 +1288,8 @@ function selfXml() {
   const speed = Number.isFinite(p.speed) ? p.speed : 0;
   const video = window.eudVideoUrl ? `<__video url="${xmlEsc(window.eudVideoUrl)}"/>` : '';
   const cam = camSensor();
+  const ni = window.eudNetInfo && window.eudNetInfo(); // radio connected: transport, gateway on/off, node (admin → Network)
+  const net = ni ? `<__takwebnet radio="${xmlEsc(ni.radio)}" bridge="${ni.bridge ? 1 : 0}" node="${xmlEsc(ni.node)}"/>` : '';
   const sensor = cam ? `<sensor azimuth="${cam.az}" fov="${cam.fov}" vfov="${cam.vfov}" range="${cam.range}" elevation="0" roll="0" north="0" type="r-e" model="${cam.model}" version="0.6"/>` : '';
   return `<event version="2.0" uid="${xmlEsc(profile.uid)}" type="a-f-G-U-C" how="m-g" time="${cotTime(now)}" start="${cotTime(now)}" stale="${cotTime(new Date(+now + 120000))}">`
     + `<point lat="${p.lat.toFixed(7)}" lon="${p.lon.toFixed(7)}" hae="${Number.isFinite(p.alt) ? p.alt.toFixed(1) : '9999999'}" ce="${Math.round(p.acc || 9999999)}" le="9999999"/>`
@@ -1297,7 +1299,7 @@ function selfXml() {
     + `<precisionlocation altsrc="GPS" geopointsrc="GPS"/>`
     + `<__group role="${xmlEsc(profile.role)}" name="${xmlEsc(profile.team)}"/>`
     + (battery != null ? `<status battery="${battery}"/>` : '')
-    + video + sensor
+    + video + sensor + net
     + `<track course="${course.toFixed(1)}" speed="${speed.toFixed(1)}"/></detail></event>`;
 }
 
