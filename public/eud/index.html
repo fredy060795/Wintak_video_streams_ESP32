@@ -258,10 +258,18 @@
       <section data-sec="server">
         <!-- on the radio (mesh only): the TAK server is reached through the TAKweb server – the phone keeps its internet -->
         <div id="srvMesh">
-          <p class="hint">TAKweb on the radio works over the mesh only. For the TAK server open the TAKweb server – the phone uses its own internet for it (mobile data).</p>
-          <label for="srvWeb">TAKweb server</label>
-          <input id="srvWeb" class="in" placeholder="https://your-server/eud/" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="url">
-          <button type="button" class="mbtn pri" id="srvWebGo">OPEN TAKWEB SERVER</button>
+          <p class="hint">TAKweb on the radio works over the mesh only. For the TAK server, video and camera open TAKweb online – the phone uses its own internet for it (mobile data), the mesh stays connected.</p>
+          <!-- the server this radio was set up from (admin) – one tap -->
+          <div id="srvKnown" class="hidden">
+            <div class="kv"><span>TAKweb server</span><b id="srvName"></b></div>
+            <button type="button" class="mbtn pri big" id="srvKnownGo">OPEN TAKWEB ONLINE</button>
+            <button type="button" class="mbtn" id="srvChange">OTHER SERVER …</button>
+          </div>
+          <div id="srvManual">
+            <label for="srvWeb">TAKweb server</label>
+            <input id="srvWeb" class="in" placeholder="https://your-server/eud/" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="url">
+            <button type="button" class="mbtn pri" id="srvWebGo">OPEN TAKWEB SERVER</button>
+          </div>
         </div>
         <div id="srvList"></div>
         <button type="button" class="mbtn pri" id="addSrvBtn">＋ ADD SERVER</button>

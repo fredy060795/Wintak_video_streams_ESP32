@@ -462,17 +462,6 @@ for (const t of document.querySelectorAll('[data-open]')) {
   });
 }
 $('connBtn').addEventListener('click', () => openPopup('server'));
-// on the radio: the address of the TAKweb server (set by the server that installed TAKweb, or entered once)
-if (MESH_ONLY) {
-  $('srvWeb').value = store.get('eud.webUrl', '') || window.TAKWEB_SERVER || '';
-  $('srvWebGo').addEventListener('click', () => {
-    let u = $('srvWeb').value.trim();
-    if (!u) return $('srvWeb').focus();
-    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
-    store.set('eud.webUrl', u);
-    location.href = radioLink(u);
-  });
-}
 
 // ======================================================================
 // Situational picture: receive and draw CoT
@@ -2783,18 +2772,40 @@ $('permClose').addEventListener('click', () => $('permBar').classList.add('hidde
 // on the radio: is the TAKweb server reachable (the phone's mobile data)? Then offer TAKweb online
 if (MESH_ONLY) {
   let webUrl = '', invite = '', closed = false, onRadio = null;
-  // set up in the admin: takweb-server.json on the radio holds the server and (optionally) this radio's TAK user
+  // set up in the admin: takweb-server.json on the radio holds the server and (optionally) this radio's TAK user.
+  // That server comes first; an address the user typed only when the radio has none.
   const radioFile = () => onRadio || (onRadio = fetch('takweb-server.json', { cache: 'no-store' }).then(r => (r.ok ? r.json() : {})).catch(() => ({})));
   const serverUrl = async () => {
     if (webUrl) return webUrl;
     const j = await radioFile();
     invite = j.invite || '';
-    return (webUrl = store.get('eud.webUrl', '') || window.TAKWEB_SERVER || j.server || '');
+    return (webUrl = j.server || window.TAKWEB_SERVER || store.get('eud.webUrl', '') || '');
   };
+  const goOnline = async () => { const u = await serverUrl(); if (u) location.href = radioLink(invite || u); };
+  // server button: the known server with one tap, typing only when there is none (or for another server)
+  async function showServer(manual) {
+    const u = await serverUrl();
+    let host = '';
+    try { host = u ? new URL(u).host : ''; } catch (e) { /* invalid */ }
+    $('srvKnown').classList.toggle('hidden', !host || manual);
+    $('srvManual').classList.toggle('hidden', !!host && !manual);
+    $('srvName').textContent = host;
+    if (!$('srvWeb').value) $('srvWeb').value = u;
+  }
+  showServer(false);
+  document.addEventListener('eud-popup', e => { if (e.detail === 'server') showServer(false); });
+  $('srvKnownGo').addEventListener('click', goOnline);
+  $('srvChange').addEventListener('click', () => showServer(true));
+  $('srvWebGo').addEventListener('click', () => {
+    let u = $('srvWeb').value.trim();
+    if (!u) return $('srvWeb').focus();
+    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+    store.set('eud.webUrl', u);
+    location.href = radioLink(u);
+  });
   async function checkOnline() {
     const u = await serverUrl();
     if (!u || closed) return;
-    if (!$('srvWeb').value) $('srvWeb').value = u;
     const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 6000);
     let ok = false;
     try { await fetch(new URL('icon-192.png?ping=' + Date.now(), u), { mode: 'no-cors', cache: 'no-store', signal: ctl.signal }); ok = true; } catch (e) { /* offline */ }
@@ -2806,7 +2817,7 @@ if (MESH_ONLY) {
   setTimeout(checkOnline, 2500);
   setInterval(checkOnline, 20000);
   // with the radio's TAK user: the invitation logs in by itself (certificate request on the server's page)
-  $('onlineGo').addEventListener('click', async () => { const u = await serverUrl(); if (u) location.href = radioLink(invite || u); });
+  $('onlineGo').addEventListener('click', goOnline);
   $('onlineClose').addEventListener('click', () => { closed = true; $('onlineBar').classList.add('hidden'); });
 }
 updatePermBar();
