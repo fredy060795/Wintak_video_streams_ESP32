@@ -22,13 +22,14 @@
       this.files = [];
       this.network = null;
       this.region = 0;
+      this.lora = null;
     }
 
     feed(m) {
       if (m.kind === 'myInfo') this.myNode = m.nodeNum;
       else if (m.kind === 'fileInfo') this.files.push({ name: m.name, size: m.size });
       else if (m.kind === 'config' && m.network) this.network = m.network;
-      else if (m.kind === 'config' && m.lora) this.region = m.region;
+      else if (m.kind === 'config' && m.lora) { this.region = m.region; this.lora = m.lora; }
       for (const w of this.waiters.slice()) if (w.test(m)) { this.waiters.splice(this.waiters.indexOf(w), 1); clearTimeout(w.timer); w.resolve(m); }
     }
 
@@ -107,6 +108,12 @@
       const after = await this.readState();
       const bad = files.filter(f => { const x = after.files.find(y => y.name.replace(/^\//, '') === `static/${f.name}.gz`); return !x || x.size !== f.gz.length; });
       if (bad.length) throw new Error(`Not stored completely (flash full?): ${bad.map(f => f.name).join(', ')}`);
+      // crisis radios always send: duty-cycle override on (with a channel link it comes with the link's LoRa settings)
+      if (!channelUrl && this.lora) {
+        await this.send(this.P.adminSetLora(this.myNode, this.lora, this.region));
+        this.log('Duty-cycle override on (the radio always sends)');
+        await sleep(300);
+      }
       if (channelUrl) { // the mesh's channel and key – a new install hears no one on its default channel
         onProgress({ step: 'channel', done: 0, total: 1 });
         const r = this.P.applyChannelUrl(this.myNode, channelUrl, { region: this.region > 0 ? this.region : this.P.REGIONS.EU_868 });

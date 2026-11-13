@@ -317,6 +317,11 @@ async function finishRadio(port, url, server, invite, ap) {
     await inst.put('/prefs/takweb-ap.txt', new TextEncoder().encode(`${ssid}\n${ap.psk}\n`));
     log(`WLAN of the radio: ${ssid}${ap.psk ? '' : ' (open)'}\n`);
     let names = [];
+    if (!url && inst.lora) { // crisis radios always send (a channel link sets it with its LoRa settings)
+      await link.send(P.adminSetLora(st.node, inst.lora, inst.region));
+      log('Duty-cycle override on (the radio always sends)\n');
+      await sleep(300);
+    }
     if (url) {
       const r = P.applyChannelUrl(st.node, url, { region: inst.region > 0 ? inst.region : P.REGIONS.EU_868 });
       for (const pkt of r.packets) { await link.send(pkt); await sleep(300); }
