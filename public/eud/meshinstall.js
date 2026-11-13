@@ -87,6 +87,32 @@
       if (await this.xm({ control: X.EOT }) !== X.ACK) throw new Error('End of ' + name + ' not confirmed');
     }
 
+    // bring the pages on the flash to the given version: want = { version, files: [{ name, gz: size }] } (the server's
+    // meshsite list), getFile(name) -> Uint8Array. Only files whose gzip size differs are written (the same build gives
+    // the same gzip), files no longer in the list are removed, the start page comes last. -> number of files written
+    async syncPages(want, getFile, { onProgress = () => {}, log = () => {} } = {}) {
+      const st = await this.readState();
+      const have = new Map(st.files.map(f => [f.name.replace(/^\/+/, ''), f.size]));
+      const names = new Set(want.files.map(f => 'static/' + f.name + '.gz'));
+      for (const n of [...have.keys()].filter(n => n.startsWith('static/') && n.endsWith('.gz') && !names.has(n))) await this.remove('/' + n).catch(() => {});
+      const todo = want.files.filter(f => have.get('static/' + f.name + '.gz') !== f.gz)
+        .sort((a, b) => (a.name === 'index.html') - (b.name === 'index.html'));
+      if (!todo.length) return 0;
+      const total = todo.reduce((n, f) => n + f.gz, 0);
+      log(`Updating ${todo.length} TAKweb page file(s) to ${want.version} (${Math.round(total / 1024)} KB) …`);
+      let done = 0;
+      for (const f of todo) {
+        const data = await getFile(f.name);
+        await this.put('/static/' + f.name + '.gz', data, b => onProgress(done + b, total));
+        done += data.length;
+        log('  ' + f.name);
+      }
+      const after = new Map((await this.readState()).files.map(f => [f.name.replace(/^\/+/, ''), f.size]));
+      const bad = todo.filter(f => after.get('static/' + f.name + '.gz') !== f.gz).map(f => f.name);
+      if (bad.length) throw new Error('not completely stored (flash full?): ' + bad.join(', '));
+      return todo.length;
+    }
+
     // files: [{ name, gz: Uint8Array }]; wifi: { ssid, psk } or null; channelUrl: Meshtastic channel link to set (or '');
     // onProgress({ step, done, total, file })
     async install({ files, wifi, channelUrl = '', onProgress = () => {} }) {
