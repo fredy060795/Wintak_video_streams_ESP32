@@ -326,10 +326,11 @@
   // AdminMessage.set_channel (33): Channel { index 1, settings 2, role 3 (1 primary, 2 secondary, 0 off) }
   const adminSetChannel = (node, index, settingsRaw, role) =>
     adminPacket(node, new Writer().msg(33, new Writer().int(1, index).bytes(2, settingsRaw, true).uint(3, role)));
-  // the LoRa settings of a link; a link without region keeps the radio's region
+  // the LoRa settings of a link; a link without region keeps the radio's region. TAKweb radios are crisis radios:
+  // override_duty_cycle (12) always on – they send whatever the channel load
   function adminSetLora(node, loraRaw, keepRegion) {
     const lf = decode(loraRaw || new Uint8Array(0));
-    const lora = withoutFields(loraRaw, u32(lf, 7) ? [] : [7]);
+    const lora = withoutFields(loraRaw, u32(lf, 7) ? [12] : [7, 12]).bool(12, true);
     if (!u32(lf, 7) && keepRegion) lora.uint(7, keepRegion);
     return adminPacket(node, new Writer().msg(34, new Writer().msg(6, lora)));
   }

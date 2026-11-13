@@ -27,6 +27,7 @@ class FakeRadio {
       const nonce = f.get(3)[0].v;
       this.emit(W().msg(3, W().uint(1, 0x1234abcd)));
       this.emit(W().msg(5, W().msg(4, { done: () => this.network })));
+      this.emit(W().msg(5, W().msg(6, W().bool(1, true).uint(7, 3).uint(8, 5))));
       for (const [name, v] of this.fs) this.emit(W().msg(15, W().str(1, name).uint(2, v.length)));
       this.emit(W().uint(7, nonce));
     } else if (f.has(5)) {
@@ -100,6 +101,9 @@ test('installer: removes the old web files, writes TAKweb, checks the sizes, set
   assert.equal(Buffer.from(net.get(5)[0].v).toString(), 'meshtastic.pool.ntp.org', 'other network settings stay');
   assert.ok(radio.rebooted);
   assert.deepEqual([...steps], ['remove', 'upload', 'check', 'wifi', 'done']);
+  const lora = P.decode(radio.lora);
+  assert.equal(lora.get(12)[0].v, 1, 'duty-cycle override on: crisis radios always send');
+  assert.equal(lora.get(8)[0].v, 5, 'the other LoRa settings stay');
 });
 
 test('installer: fixed address for the iPhone hotspot, back to DHCP without one', () => {
@@ -185,4 +189,5 @@ test('channel link: primary + secondary channels, the rest off, LoRa settings wi
   const lora = P.decode(radio.lora);
   assert.equal(lora.get(2)[0].v, 4, 'modem preset from the link');
   assert.equal(lora.get(7)[0].v, 3, 'no region in the link: EU_868 / the radio\'s region');
+  assert.equal(lora.get(12)[0].v, 1, 'duty-cycle override on (crisis radios always send)');
 });
