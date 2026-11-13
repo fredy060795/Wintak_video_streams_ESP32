@@ -191,3 +191,30 @@ test('channel link: primary + secondary channels, the rest off, LoRa settings wi
   assert.equal(lora.get(7)[0].v, 3, 'no region in the link: EU_868 / the radio\'s region');
   assert.equal(lora.get(12)[0].v, 1, 'duty-cycle override on (crisis radios always send)');
 });
+
+test('MQTT to the server, GPS position, OK to MQTT – the radio reports itself without a phone', () => {
+  const admin = pkt => P.decode(P.decode(P.decode(P.decode(pkt).get(1)[0].v).get(4)[0].v).get(2)[0].v);
+  const mq = P.decode(P.decode(admin(P.adminSetMqtt(9, { address: 'tak.example:8883', username: 'takweb_mesh_mqtt', password: 'pw', root: 'opentakserver' })).get(35)[0].v).get(1)[0].v);
+  const str = (f, n) => Buffer.from(f.get(n)[0].v).toString();
+  assert.equal(mq.get(1)[0].v, 1, 'enabled');
+  assert.equal(str(mq, 2), 'tak.example:8883');
+  assert.equal(str(mq, 3), 'takweb_mesh_mqtt');
+  assert.equal(mq.get(5)[0].v, 1, 'encrypted (OTS decrypts with the channel key)');
+  assert.ok(!mq.has(6), 'no JSON');
+  assert.equal(mq.get(7)[0].v, 1, 'TLS');
+  assert.equal(str(mq, 8), 'opentakserver');
+  // position: keeps other fields, clears hand-set GPS pins, GPS on
+  const old = W().uint(1, 900).uint(10, 50).uint(12, 3).uint(13, 0).done();
+  const pos = P.decode(P.decode(admin(P.adminSetPosition(9, old, { secs: 120 })).get(34)[0].v).get(2)[0].v);
+  assert.equal(pos.get(1)[0].v, 120);
+  assert.equal(pos.get(2)[0].v, 1, 'smart broadcast');
+  assert.equal(pos.get(13)[0].v, 1, 'GPS enabled');
+  assert.ok(!pos.has(12), 'hand-set GPS EN pin cleared');
+  assert.equal(pos.get(10)[0].v, 50, 'other settings stay');
+  // LoRa: duty-cycle override and OK to MQTT
+  const lora = P.decode(P.decode(admin(P.adminSetLora(9, W().uint(7, 3).done(), 3)).get(34)[0].v).get(6)[0].v);
+  assert.equal(lora.get(105)[0].v, 1, 'OK to MQTT');
+  // the radio's position config is read from want_config
+  const fr = W().msg(5, W().msg(2, { done: () => old })).done();
+  assert.deepEqual([...P.parseFromRadio(fr).position], [...old]);
+});

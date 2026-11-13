@@ -199,7 +199,8 @@
       const lora = has(cf, 6) ? (bytes(cf, 6) || new Uint8Array(0)) : null;
       // LoRaConfig.region (7): 0 = UNSET – then the radio neither sends nor receives
       const lc = lora ? decode(lora) : null;
-      return { kind: 'config', network: bytes(cf, 4), lora, region: lc ? u32(lc, 7) : undefined, preset: lc ? u32(lc, 2) : undefined, usePreset: lc ? !!u32(lc, 1) : undefined };
+      const position = has(cf, 2) ? (bytes(cf, 2) || new Uint8Array(0)) : null;
+      return { kind: 'config', network: bytes(cf, 4), lora, position, region: lc ? u32(lc, 7) : undefined, preset: lc ? u32(lc, 2) : undefined, usePreset: lc ? !!u32(lc, 1) : undefined };
     }
     return { kind: 'other' };
   }
@@ -330,7 +331,8 @@
   // override_duty_cycle (12) always on – they send whatever the channel load
   function adminSetLora(node, loraRaw, keepRegion) {
     const lf = decode(loraRaw || new Uint8Array(0));
-    const lora = withoutFields(loraRaw, u32(lf, 7) ? [12] : [7, 12]).bool(12, true);
+    // config_ok_to_mqtt (105): the radio's packets may go to the server (MQTT gateway)
+    const lora = withoutFields(loraRaw, u32(lf, 7) ? [12, 105] : [7, 12, 105]).bool(12, true).bool(105, true);
     if (!u32(lf, 7) && keepRegion) lora.uint(7, keepRegion);
     return adminPacket(node, new Writer().msg(34, new Writer().msg(6, lora)));
   }
@@ -341,6 +343,19 @@
     for (let i = c.settings.length; i < max; i++) out.push(adminSetChannel(node, i, new Uint8Array(0), 0));
     if (c.lora) out.push(adminSetLora(node, c.lora, region));
     return { packets: out, names: c.names };
+  }
+  // MQTT to the server (OpenTAKServer: RabbitMQ MQTT, topic <root>/2/e/<channel>/…, encrypted with the channel key –
+  // OTS decrypts it): AdminMessage.set_module_config (35) { mqtt (1) { enabled 1, address 2, username 3, password 4,
+  // encryption_enabled 5, json_enabled 6, tls_enabled 7, root 8, proxy_to_client 9, map_reporting 10 } }
+  function adminSetMqtt(node, { address, username, password, root = 'opentakserver', tls = true }) {
+    const mqtt = new Writer().bool(1, true).str(2, address).str(3, username).str(4, password).bool(5, true).bool(7, tls).str(8, root);
+    return adminPacket(node, new Writer().msg(35, new Writer().msg(1, mqtt)));
+  }
+  // position: GPS on, smart broadcast with a fixed interval; hand-set GPS pins (8, 9, 12) cleared – the board's pins.
+  // Config.position (2) { position_broadcast_secs 1, smart 2, rx_gpio 8, tx_gpio 9, gps_en_gpio 12, gps_mode 13 }
+  function adminSetPosition(node, positionRaw, { secs = 120 } = {}) {
+    const pos = withoutFields(positionRaw, [1, 2, 8, 9, 12, 13]).uint(1, secs).bool(2, true).uint(13, 1);
+    return adminPacket(node, new Writer().msg(34, new Writer().msg(2, pos)));
   }
   const adminReboot = (node, seconds = 2) => adminPacket(node, new Writer().int(97, seconds));
 
@@ -607,7 +622,7 @@
 
   return {
     XMODEM, crc16, sha256, toRadioXmodem, adminSetWifi, adminReboot, adminSetRegion, REGIONS, PRESETS,
-    parseChannelUrl, adminSetChannel, adminSetLora, applyChannelUrl, withoutFields, IPHONE_IP, ipU32, staticNet,
+    parseChannelUrl, adminSetChannel, adminSetLora, applyChannelUrl, adminSetMqtt, adminSetPosition, withoutFields, IPHONE_IP, ipU32, staticNet,
     voicePackets, voiceRequest, parseVoice, VoiceAssembler, VOICE_CHUNK,
     PORT, BROADCAST, ALL_CHAT, TEAMS, ROLES, FOUNTAIN, Writer, decode,
     wantConfig, toRadioPacket, takPli, takChat, parseTak, parseFromRadio, parseUserPayload, parsePositionPayload,

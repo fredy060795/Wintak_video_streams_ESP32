@@ -1499,6 +1499,36 @@ async function handleAdminApi(req, res, route) {
       return json(res, 200, { invite: eudInvite(req, u), user: { id: u.id, callsign: u.callsign, username: u.username } });
     } catch (e) { return json(res, 400, { error: e.message }); }
   }
+  // MQTT for the radios (positions etc. from the mesh to OTS, also when no phone is connected): OTS takes Meshtastic
+  // over RabbitMQ MQTT and checks the login against its users. The radios get their own OTS user (created once) –
+  // not the admin's password, which anyone who gets hold of a radio could read out.
+  const mqttView = () => {
+    const d = store.data.meshMqtt || {};
+    return { ots: true, address: d.address || `${takUsers.takHost()}:8883`, tls: d.tls !== false, root: d.root || 'opentakserver' };
+  };
+  if (route === 'mesh-mqtt' && method === 'GET') return json(res, 200, takUsers.otsConfigured() ? mqttView() : { ots: false });
+  if (route === 'mesh-mqtt/login' && method === 'POST') { // when a radio is set up with MQTT
+    if (!takUsers.otsConfigured()) return json(res, 400, { error: 'OpenTAKServer is not connected.' });
+    const m = store.data.meshMqtt || {};
+    try {
+      if (!m.username) {
+        const username = 'takweb_mesh_mqtt', password = crypto.randomBytes(18).toString('base64url');
+        const ots = takUsers.ots();
+        if (await ots.userExists(username)) await ots.resetPassword(username, password);
+        else await ots.addUser(username, password, ['user']);
+        store.data.meshMqtt = { ...m, username, password };
+        store.save();
+        log('Admin: OTS user for the radios\' MQTT created', username);
+      }
+    } catch (e) { return json(res, 502, { error: 'MQTT user not created in OTS: ' + e.message }); }
+    return json(res, 200, { ...mqttView(), username: store.data.meshMqtt.username, password: store.data.meshMqtt.password });
+  }
+  if (route === 'mesh-mqtt' && method === 'POST') { // broker address / TLS as the OTS has them (default: TAK host, 8883, TLS)
+    const body = await readJson(req);
+    store.data.meshMqtt = { ...(store.data.meshMqtt || {}), address: String(body.address || '').trim().slice(0, 120), tls: body.tls !== false };
+    store.save();
+    return json(res, 200, { ok: true });
+  }
   if (route === 'eud-links' && method === 'GET') {
     return json(res, 200, { links: [...takLinks.values()].map(l => l.info()) });
   }

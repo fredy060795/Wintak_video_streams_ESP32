@@ -531,6 +531,14 @@ versions), update only, the files to download (.uf2 for nRF52/RP2040).
   TAK user onto the radio (new one per radio, or an existing one). "TAKWEB ONLINE" then logs in by itself; the person only
   changes the name. Anyone in the radio's WLAN can read this login: one user per radio, block it in the admin when a
   radio is lost.
+- **Positions without a phone (MQTT):** setting up a radio also switches its GPS on (position every 2 minutes, smart
+  broadcast) and allows its messages onto MQTT. With "Send positions to the server (MQTT)" the radio gets the OTS MQTT
+  broker (default `<server>:8883`, TLS, topic root `opentakserver`) and a dedicated OTS user `takweb_mesh_mqtt` that the
+  admin creates once (not the admin's own password – it is stored on every radio). Role **HQ gateway**: one radio at
+  headquarters joins the HQ WLAN (name and password in the setup card) and forwards the whole mesh to OTS – positions
+  and chat of every radio on the channel land on the server even when the phones are closed. Needs in OTS:
+  `OTS_ENABLE_MESHTASTIC = True`, the RabbitMQ MQTT listener on the given port, and the channel taken from OTS (its key
+  lets OTS read the messages).
 
 ## Mission tracks (record & replay)
 

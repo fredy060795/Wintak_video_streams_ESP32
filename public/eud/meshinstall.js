@@ -23,6 +23,7 @@
       this.network = null;
       this.region = 0;
       this.lora = null;
+      this.position = null;
     }
 
     feed(m) {
@@ -30,6 +31,7 @@
       else if (m.kind === 'fileInfo') this.files.push({ name: m.name, size: m.size });
       else if (m.kind === 'config' && m.network) this.network = m.network;
       else if (m.kind === 'config' && m.lora) { this.region = m.region; this.lora = m.lora; }
+      else if (m.kind === 'config' && m.position) this.position = m.position;
       for (const w of this.waiters.slice()) if (w.test(m)) { this.waiters.splice(this.waiters.indexOf(w), 1); clearTimeout(w.timer); w.resolve(m); }
     }
 

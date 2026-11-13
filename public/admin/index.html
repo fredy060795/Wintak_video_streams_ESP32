@@ -380,6 +380,18 @@
         <div class="grow"><label>TAK user on the radio</label><select id="suUser"></select></div>
       </div>
       <div class="row">
+        <div class="grow"><label>Role</label><select id="suRole">
+          <option value="field">Field radio (GPS position to the server over the mesh)</option>
+          <option value="gateway">HQ gateway – always on, internet over the HQ WLAN, passes the mesh to the server</option>
+        </select></div>
+        <div class="grow"><label class="check"><input type="checkbox" id="suMqtt" checked> Positions &amp; messages to the server (MQTT) – also when no phone is connected</label>
+          <input id="suMqttAddr" placeholder="MQTT of the OTS, e.g. tak.example.org:8883" autocomplete="off"></div>
+      </div>
+      <div class="row hidden" id="suGwRow">
+        <div class="grow"><label>HQ WLAN (internet) name</label><input id="suGwSsid" maxlength="32" autocomplete="off"></div>
+        <div class="grow"><label>HQ WLAN password</label><input id="suGwPsk" maxlength="63" autocomplete="off"></div>
+      </div>
+      <div class="row">
         <div class="grow"><label>WLAN name of the radio (empty = automatic, e.g. TAKweb-8E1B)</label><input id="suSsid" maxlength="32" placeholder="automatic: TAKweb-xxxx" autocomplete="off"></div>
         <div class="grow"><label>WLAN password (8–63 characters, empty = open WLAN)</label><input id="suPsk" maxlength="63" value="12345678" autocomplete="off"></div>
       </div>
