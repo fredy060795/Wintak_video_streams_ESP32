@@ -355,7 +355,7 @@ async function finishRadio(port, url, server, invite, ap, net = {}) {
     }
     await sleep(800);
     await link.send(P.adminReboot(st.node, 2)); // the new WLAN name/password take effect after the restart
-    return { names, ssid };
+    return { names, ssid, node: st.node };
   } finally { await link.close(); }
 }
 
@@ -422,7 +422,10 @@ $('suGo').addEventListener('click', async () => {
       const m = await api('mesh-mqtt/login', { method: 'POST', body: {} });
       mqtt = { address: m.address, username: m.username, password: m.password, root: m.root, tls: m.tls };
     }
-    ({ names, ssid } = await finishRadio(p2, chan, server, invite, ap, { mqtt, gateway }));
+    let node;
+    ({ names, ssid, node } = await finishRadio(p2, chan, server, invite, ap, { mqtt, gateway }));
+    // known in admin → Network (role, WLAN name) by its node id
+    api('mesh-radios', { method: 'POST', body: { node: P.nodeId(node), name: radioName(d), ssid, role: gateway ? 'gateway' : 'field', mqtt: !!mqtt } }).catch(() => {});
     if (who) loadSetupUsers();
     suBar(100);
     suSay(`Done! ${radioName(d)} has TAKweb${names.length ? ', the mesh channel ' + names.join(', ') : ''}${who ? ' and the TAK user ' + who.callsign : ''}. On the phone: WLAN "${ssid}"${ap.psk ? ` (password ${ap.psk})` : ' (open)'} → https://takweb.local – accept the certificate once${who ? '; with internet "TAKWEB ONLINE" logs in by itself' : ''}.`);

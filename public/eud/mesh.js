@@ -52,6 +52,8 @@
   let channels = [];
 
   const msg = (text, ok) => setMsg($('meshMsg'), text, ok);
+  // for the own position report: how this device is connected (admin → Network shows gateways and mesh-only areas)
+  window.eudNetInfo = () => (state === 'connected' ? { radio: cfg.transport || 'ble', bridge: !!cfg.bridge, node: myNode ? P.nodeId(myNode) : '' } : null);
 
   // ---------------- UI ----------------
 
@@ -663,7 +665,7 @@
     pendingUp.delete(k.key);
     if (!window.eud.serverOnline() || seenIn(seenServer, k)) return; // the TAK server has it already
     seenServer.set(k.key, Date.now());
-    window.eud.forwardCot(marked(xml));
+    window.eud.forwardCot(marked(xml).replace(`<${MARK}/>`, `<${MARK} gw="${window.eud.esc(profile.uid)}"/>`)); // which gateway passed it on (admin → Network)
   }
 
   let downChain = Promise.resolve(), downQueued = 0;

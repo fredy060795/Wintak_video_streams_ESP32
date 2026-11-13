@@ -539,6 +539,13 @@ versions), update only, the files to download (.uf2 for nRF52/RP2040).
   and chat of every radio on the channel land on the server even when the phones are closed. Needs in OTS:
   `OTS_ENABLE_MESHTASTIC = True`, the RabbitMQ MQTT listener on the given port, and the channel taken from OTS (its key
   lets OTS read the messages).
+- **Network view (admin → Network):** a map of how every device reaches the server right now – green: own internet,
+  blue diamond: gateway (TAKweb phone with radio and "gateway" on, or a radio set up as HQ gateway), orange: mesh only,
+  grey: offline. Lines: LoRa → phone gateway (the phone puts its id on what it passes on), dashed: LoRa → MQTT (OTS does
+  not say which radio uplinked – the nearest HQ gateway is assumed). The coverage layer collects over time where
+  internet worked, where only the mesh reached the server and where connections broke off (≈ 500 m squares) – where it
+  is orange or red, a gateway is needed. Gateways with their traffic (15 min) and the radios set up in the admin (role,
+  WLAN) are listed below the map. Needs the HQ connection to the TAK server (OTS).
 
 ## Mission tracks (record & replay)
 

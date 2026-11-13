@@ -37,6 +37,7 @@ const { Hq } = require('./lib/hq');
 const { Voice } = require('./lib/voice');
 const raster = require('./lib/raster');
 const meshsite = require('./lib/meshsite');
+const { Netmap, hexId } = require('./lib/netmap');
 const { FirmwareLibrary } = require('./lib/firmware');
 
 const config = {
@@ -866,6 +867,9 @@ function trackAccept(m, uid, callsign) {
 // HQ pages: live picture, geofences, warnings, situation log (lib/hq.js)
 const hq = new Hq({ data: () => store.data.hq || (store.data.hq = {}), save: () => store.save(), log });
 setInterval(() => hq.sweep(), 60000).unref();
+// admin → Network: gateways, internet / mesh-only devices, coverage over time (lib/netmap.js)
+const netmap = new Netmap({ data: () => store.data.netmap || (store.data.netmap = {}), save: () => store.save(), hq, radios: () => store.data.meshRadios || {} });
+setInterval(() => netmap.sweep(), 60000).unref();
 const tracks = new Tracks({
   dir: path.join(config.dataDir, 'tracks'), data: tracksData, save: () => store.save(), log, accept: trackAccept,
   onChange: () => recApply().catch(e => log('Mission tracks: ' + e.message)),
@@ -925,7 +929,7 @@ async function recApply() {
       Object.assign(recState, { state, message: message || '' });
       if (/rejected the client certificate/.test(message || '')) { d.certPem = ''; store.save(); } // e.g. revoked: a new one next time
     },
-    onCot: xml => { tracks.cot(xml); hq.cot(xml); },
+    onCot: xml => { tracks.cot(xml); hq.cot(xml); netmap.cot(xml); },
   });
   recLink.start();
   return '';
@@ -1526,6 +1530,26 @@ async function handleAdminApi(req, res, route) {
   if (route === 'mesh-mqtt' && method === 'POST') { // broker address / TLS as the OTS has them (default: TAK host, 8883, TLS)
     const body = await readJson(req);
     store.data.meshMqtt = { ...(store.data.meshMqtt || {}), address: String(body.address || '').trim().slice(0, 120), tls: body.tls !== false };
+    store.save();
+    return json(res, 200, { ok: true });
+  }
+  // Network view: who reaches the server how, gateways, coverage history; radios set up here (role, WLAN) by node id
+  if (route === 'network' && method === 'GET') {
+    return json(res, 200, { ...netmap.picture(), source: { ...recState, enabled: hq.enabled(), available: takUsers.otsConfigured() } });
+  }
+  if (route === 'network/clear' && method === 'POST') { netmap.clear(); return json(res, 200, { ok: true }); }
+  if (route === 'mesh-radios' && method === 'POST') {
+    const body = await readJson(req);
+    const id = hexId(body.node);
+    if (!id) return json(res, 400, { error: 'Meshtastic node id missing.' });
+    const r = store.data.meshRadios = store.data.meshRadios || {};
+    r[id] = { name: String(body.name || '').slice(0, 60), ssid: String(body.ssid || '').slice(0, 32), role: body.role === 'gateway' ? 'gateway' : 'field', mqtt: !!body.mqtt, time: Date.now() };
+    store.save();
+    return json(res, 200, { ok: true });
+  }
+  const mr = /^mesh-radios\/(!?[0-9a-f]{1,8})$/i.exec(route);
+  if (mr && method === 'DELETE') {
+    if (store.data.meshRadios) delete store.data.meshRadios[hexId(mr[1])];
     store.save();
     return json(res, 200, { ok: true });
   }
