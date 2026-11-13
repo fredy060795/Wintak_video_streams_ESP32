@@ -82,3 +82,20 @@ test('netmap: coverage cells – internet, mesh only, broken off; once a minute 
   net.clear();
   assert.equal(net.picture().cells.length, 0);
 });
+
+test('netmap: WebTAK Server names the MQTT gateway – exact line with hops, the radio counts as gateway', () => {
+  const { net, feed } = make();
+  const mq = (uid, lat, lon, id, gw, hops) => ots(uid, lat, lon, id).replace('</detail>', `<__mqtt gateway="!${gw}" channel="TAK" hops="${hops}" snr="5.0" rssi="-90"/></detail>`);
+  feed(mq('0000c0de', 47.2, 11.2, '0000c0de', '0000c0de', 0)); // the gateway radio itself
+  feed(mq('ANDROID-9', 47.3, 11.3, '00000009', '0000c0de', 2));
+  feed(ots('0000f00d', 47.0, 11.0, '0000f00d'));                // another radio, not uplinking (OTS-style, no gateway named)
+  const p = net.picture();
+  const k = Object.fromEntries(p.nodes.map(n => [n.uid, n]));
+  assert.equal(k['0000c0de'].kind, 'gateway');
+  assert.equal(k['0000c0de'].gatewayType, 'radio');
+  assert.equal(k['0000c0de'].traffic, 2);
+  assert.equal(k['ANDROID-9'].gateway, '0000c0de');
+  const e = p.edges.find(x => x.from === 'ANDROID-9');
+  assert.deepEqual([e.to, e.kind, e.assumed, e.hops], ['0000c0de', 'mqtt', undefined, 2]);
+  assert.equal(p.edges.find(x => x.from === '0000f00d').assumed, true, 'without a named gateway: nearest, assumed');
+});

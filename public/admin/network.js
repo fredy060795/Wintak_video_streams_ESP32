@@ -44,12 +44,14 @@
 
   function popup(n, byUid) {
     const via = n.via && byUid.get(n.via);
+    const byGw = id => [...byUid.values()].find(x => x.meshNode === id);
     const rows = [
       ['Status', KIND_TEXT[n.kind] + (n.gatewayType ? ` (${n.gatewayType === 'radio' ? 'HQ radio, MQTT' : 'phone with radio'})` : '')],
       ['Way to the server', LINK_TEXT[n.link] || n.link],
       via ? ['Passed on by', via.callsign] : null,
       n.radio ? ['Radio', `${RADIO_TEXT[n.radio] || n.radio}${n.bridge ? ', gateway on' : ', gateway off'}`] : null,
       n.meshNode ? ['Mesh node', '!' + n.meshNode] : null,
+      n.gateway && byGw(n.gateway) ? ['Uplinked by', byGw(n.gateway).callsign + (n.hops != null ? ` (${n.hops} hop${n.hops === 1 ? '' : 's'})` : '')] : n.gateway ? ['Uplinked by', '!' + n.gateway] : null,
       n.registered ? ['Set up as', `${n.registered.role === 'gateway' ? 'HQ gateway' : 'field radio'}${n.registered.ssid ? ', WLAN ' + n.registered.ssid : ''}`] : null,
       n.traffic != null ? ['Passed on (15 min)', String(n.traffic)] : null,
       ['Platform', n.platform || '–'],
@@ -77,9 +79,9 @@
         const a = byUid.get(e.from), b = byUid.get(e.to);
         if (!a || !b) continue;
         L.polyline([[a.lat, a.lon], [b.lat, b.lon]], e.kind === 'mqtt'
-          ? { color: '#c58cff', weight: 2, dashArray: '6 6', opacity: 0.9 }
+          ? { color: '#c58cff', weight: e.assumed ? 2 : 3, dashArray: e.assumed ? '6 6' : '2 6', opacity: 0.9 }
           : { color: '#f6a623', weight: 3, opacity: 0.9 })
-          .bindTooltip(e.kind === 'mqtt' ? `${a.callsign} → MQTT gateway ${b.callsign} (assumed: the nearest)` : `${a.callsign} → over LoRa → ${b.callsign}`, { sticky: true })
+          .bindTooltip(e.kind === 'mqtt' ? `${a.callsign} → MQTT gateway ${b.callsign}${e.assumed ? ' (assumed: the nearest)' : e.hops != null ? ` (${e.hops} hop${e.hops === 1 ? '' : 's'})` : ''}` : `${a.callsign} → over LoRa → ${b.callsign}`, { sticky: true })
           .addTo(layers.lines);
       }
     }
@@ -114,7 +116,7 @@
     const gws = d.nodes.filter(n => n.kind === 'gateway' || (n.gatewayType && !n.online));
     $('nwGws').innerHTML = gws.length ? gws.map(n => `<tr><td data-label="Gateway"><b>${h(n.callsign)}</b>${n.registered && n.registered.name ? ` <span class="mut small">${h(n.registered.name)}${n.registered.ssid ? ' · ' + h(n.registered.ssid) : ''}</span>` : ''}${n.online ? '' : ' <span class="mut small">(offline)</span>'}</td>`
       + `<td data-label="Type">${n.gatewayType === 'radio' ? 'HQ radio (MQTT)' : `phone + radio (${h(RADIO_TEXT[n.radio] || n.radio || '?')})`}</td>`
-      + `<td data-label="Passes on">${n.gatewayType === 'radio' ? `${d.mqtt} over MQTT (all HQ gateways)` : n.traffic}</td>`
+      + `<td data-label="Passes on">${n.gatewayType === 'radio' ? (n.traffic != null ? `${n.traffic} to MQTT` : `${d.mqtt} over MQTT (all HQ gateways)`) : n.traffic}</td>`
       + `<td data-label="Last heard">${since(n.time)}</td></tr>`).join('')
       : '<tr><td colspan="4" class="mut">No gateway online. A TAKweb phone becomes one with a radio connected and "gateway" on (Meshtastic menu); a radio with the role "HQ gateway" (Meshtastic → Set up a radio).</td></tr>';
     $('nwRadios').innerHTML = d.radios.length ? d.radios.map(r => `<tr><td data-label="Radio">${h(r.name || '–')}</td><td data-label="Node"><code>!${h(r.node)}</code></td>`

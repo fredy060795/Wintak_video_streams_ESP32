@@ -513,8 +513,8 @@
       <p class="mut small">Live from your TAK server (the HQ connection): which device is online over its own internet, which one only over
         the mesh, and which devices are <b>gateways</b> – TAKweb phones with a radio and "gateway" on, and radios set up as
         <b>HQ gateway</b> (MQTT). Lines show the way: <span class="nw-k lora"></span> LoRa → phone gateway,
-        <span class="nw-k mqtt"></span> LoRa → MQTT gateway (OTS does not say which radio uplinked – the nearest HQ gateway is
-        assumed). The coverage layer collects over time where internet worked, where only the mesh reached the server and
+        <span class="nw-k mqtt"></span> LoRa → MQTT gateway (WebTAK Server names the radio that uplinked, with the hops;
+        OpenTAKServer does not – then the nearest HQ gateway is assumed, dashed). The coverage layer collects over time where internet worked, where only the mesh reached the server and
         where connections broke off – so you see where gateways are needed.</p>
       <p class="msg" id="nwMsg"></p>
       <div class="nw-stats" id="nwStats"></div>
