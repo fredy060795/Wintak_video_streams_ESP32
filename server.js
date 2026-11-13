@@ -869,7 +869,22 @@ const hq = new Hq({ data: () => store.data.hq || (store.data.hq = {}), save: () 
 setInterval(() => hq.sweep(), 60000).unref();
 // admin → Network: gateways, internet / mesh-only devices, coverage over time (lib/netmap.js)
 const netmap = new Netmap({ data: () => store.data.netmap || (store.data.netmap = {}), save: () => store.save(), hq, radios: () => store.data.meshRadios || {} });
-setInterval(() => netmap.sweep(), 60000).unref();
+// WebTAK Server reports every radio heard over MQTT (also without GPS) and the link quality; OpenTAKServer has none
+let meshStatusAt = 0;
+async function refreshMeshStatus(maxAge = 0) {
+  if (Date.now() - meshStatusAt < maxAge) return;
+  meshStatusAt = Date.now();
+  try { netmap.status = takUsers.otsConfigured() ? await takUsers.ots().meshStatus() : null; } catch (e) { netmap.status = null; }
+}
+// every minute: lost connections on the coverage map, alarms for the HQ (gateway silent, radio not heard, battery low)
+setInterval(async () => {
+  netmap.sweep();
+  await refreshMeshStatus();
+  for (const a of netmap.check()) {
+    hq.event(a.alert ? 'network' : 'network-ok', a.text, { alert: a.alert, uid: a.uid || '' });
+    hq.addLog({ from: 'Network', kind: 'Report', text: a.text, auto: true });
+  }
+}, 60000).unref();
 const tracks = new Tracks({
   dir: path.join(config.dataDir, 'tracks'), data: tracksData, save: () => store.save(), log, accept: trackAccept,
   onChange: () => recApply().catch(e => log('Mission tracks: ' + e.message)),
@@ -1535,6 +1550,7 @@ async function handleAdminApi(req, res, route) {
   }
   // Network view: who reaches the server how, gateways, coverage history; radios set up here (role, WLAN) by node id
   if (route === 'network' && method === 'GET') {
+    await refreshMeshStatus(10000);
     return json(res, 200, { ...netmap.picture(), source: { ...recState, enabled: hq.enabled(), available: takUsers.otsConfigured() } });
   }
   if (route === 'network/clear' && method === 'POST') { netmap.clear(); return json(res, 200, { ok: true }); }

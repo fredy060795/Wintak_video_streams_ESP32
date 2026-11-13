@@ -74,6 +74,17 @@
           .addTo(layers.cover);
       }
     }
+    const q = $('nwQuality').checked;
+    document.querySelectorAll('.nw-qleg').forEach(x => x.classList.toggle('hidden', !q));
+    if (q) {
+      for (const c of d.quality || []) {
+        const [lat, lon, hops, snr, count, t] = c;
+        const color = hops === 0 ? (snr != null && snr < -7 ? '#a0dc3c' : '#3ddc4b') : hops === 1 ? '#f6c344' : '#ff7828';
+        L.rectangle([[lat, lon], [lat + d.cell, lon + d.cell]], { stroke: false, fillColor: color, fillOpacity: 0.45 })
+          .bindTooltip(`${hops === 0 ? 'heard directly by a gateway' : hops + ' hop' + (hops === 1 ? '' : 's') + ' to a gateway'}${snr != null ? ` · best SNR ${snr.toFixed(1)} dB` : ''}<br>${count} reports · ${since(t)}`, { sticky: true })
+          .addTo(layers.cover);
+      }
+    }
     if ($('nwLines').checked) {
       for (const e of d.edges) {
         const a = byUid.get(e.from), b = byUid.get(e.to);
@@ -113,12 +124,28 @@
   }
 
   function tables(d) {
+    const alarms = d.alarms || [];
+    $('nwAlarms').innerHTML = alarms.length ? alarms.map(a => `<li class="${a.alert ? '' : 'ok'}"><time>${h(new Date(a.t).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }))}</time>${h(a.text)}</li>`).join('')
+      : '<li class="ok">No alarms.</li>';
     const gws = d.nodes.filter(n => n.kind === 'gateway' || (n.gatewayType && !n.online));
-    $('nwGws').innerHTML = gws.length ? gws.map(n => `<tr><td data-label="Gateway"><b>${h(n.callsign)}</b>${n.registered && n.registered.name ? ` <span class="mut small">${h(n.registered.name)}${n.registered.ssid ? ' · ' + h(n.registered.ssid) : ''}</span>` : ''}${n.online ? '' : ' <span class="mut small">(offline)</span>'}</td>`
+    // gateways WebTAK Server knows that are not on the map (no GPS / no position yet)
+    const extra = d.mesh ? d.mesh.gateways.filter(g => !g.onMap && !gws.some(n => n.meshNode === g.id)) : [];
+    $('nwGws').innerHTML = gws.map(n => `<tr><td data-label="Gateway"><b>${h(n.callsign)}</b>${n.registered && n.registered.name ? ` <span class="mut small">${h(n.registered.name)}${n.registered.ssid ? ' · ' + h(n.registered.ssid) : ''}</span>` : ''}${n.online ? '' : ' <span class="mut small">(offline)</span>'}</td>`
       + `<td data-label="Type">${n.gatewayType === 'radio' ? 'HQ radio (MQTT)' : `phone + radio (${h(RADIO_TEXT[n.radio] || n.radio || '?')})`}</td>`
       + `<td data-label="Passes on">${n.gatewayType === 'radio' ? (n.traffic != null ? `${n.traffic} to MQTT` : `${d.mqtt} over MQTT (all HQ gateways)`) : n.traffic}</td>`
       + `<td data-label="Last heard">${since(n.time)}</td></tr>`).join('')
-      : '<tr><td colspan="4" class="mut">No gateway online. A TAKweb phone becomes one with a radio connected and "gateway" on (Meshtastic menu); a radio with the role "HQ gateway" (Meshtastic → Set up a radio).</td></tr>';
+      + extra.map(g => `<tr><td data-label="Gateway"><b>${h(g.name)}</b> <span class="mut small">!${h(g.id)} · no position on the map</span></td><td data-label="Type">HQ radio (MQTT)</td>`
+        + `<td data-label="Passes on">${g.packets} packets (${h(g.channel)})</td><td data-label="Last heard">${since(g.last)}</td></tr>`).join('')
+      || '<tr><td colspan="4" class="mut">No gateway online. A TAKweb phone becomes one with a radio connected and "gateway" on (Meshtastic menu); a radio with the role "HQ gateway" (Meshtastic → Set up a radio).</td></tr>';
+    const heard = d.mesh ? d.mesh.nodes.slice().sort((a, b) => b.heard - a.heard) : [];
+    $('nwHeardH').classList.toggle('hidden', !d.mesh);
+    $('nwHeardT').classList.toggle('hidden', !d.mesh);
+    const gname = id => { const n = heard.find(x => x.id === id), m = d.nodes.find(x => x.meshNode === id); return n && n.name !== '!' + id ? n.name : m ? m.callsign : '!' + id; };
+    $('nwHeard').innerHTML = heard.map(n => `<tr><td data-label="Radio"><b>${h(n.name)}</b> <span class="mut small">!${h(n.id)}${n.located ? '' : ' · no GPS'}</span></td>`
+      + `<td data-label="Via">${n.gateway === n.id ? 'is a gateway' : h(gname(n.gateway)) + (n.hops != null ? ` · ${n.hops === 0 ? 'direct' : n.hops + ' hop' + (n.hops === 1 ? '' : 's')}` : '')}</td>`
+      + `<td data-label="Signal">${n.gateway !== n.id && n.hops === 0 && n.snr != null ? `SNR ${n.snr.toFixed(1)} dB · RSSI ${n.rssi} dBm` : '<span class="mut">–</span>'}</td>`
+      + `<td data-label="Battery">${n.battery != null ? (n.battery > 100 ? 'external' : n.battery + ' %') : ''}</td><td data-label="Last heard">${since(n.heard)}</td></tr>`).join('')
+      || '<tr><td colspan="5" class="mut">No radio heard yet.</td></tr>';
     $('nwRadios').innerHTML = d.radios.length ? d.radios.map(r => `<tr><td data-label="Radio">${h(r.name || '–')}</td><td data-label="Node"><code>!${h(r.node)}</code></td>`
       + `<td data-label="Role">${r.role === 'gateway' ? 'HQ gateway' : 'field radio'}${r.mqtt ? ' · MQTT' : ''}</td><td data-label="WLAN">${h(r.ssid || '–')}</td>`
       + `<td data-label="Status">${r.online ? '<span style="color:var(--ok)">online</span>' : r.seen ? 'last heard ' + since(r.seen) : 'not heard yet'}</td>`
@@ -142,7 +169,7 @@
     if (document.querySelector('[data-nav="network"].on')) poll = setTimeout(load, 10000);
   }
 
-  for (const id of ['nwCover', 'nwLines', 'nwOffline']) $(id).addEventListener('change', () => last && draw(last));
+  for (const id of ['nwCover', 'nwQuality', 'nwLines', 'nwOffline']) $(id).addEventListener('change', () => last && draw(last));
   $('nwFit').addEventListener('click', () => fit());
   $('nwReload').addEventListener('click', load);
   $('nwClear').addEventListener('click', async () => {

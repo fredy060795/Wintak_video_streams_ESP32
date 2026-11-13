@@ -73,6 +73,7 @@ table.grid tr.off td { opacity: .5; }
 .events li.hostile { border-left-color: var(--hostile); }
 .events li.fence-in { border-left-color: var(--ok); }
 .events li.fence-out { border-left-color: var(--warn); }
+.events li.network { border-left-color: var(--warn); } .events li.network-ok { border-left-color: var(--ok); }
 .events li.log { border-left-color: var(--acc); }
 .events.big li { font-size: 15px; padding: 8px 10px; }
 
@@ -125,6 +126,7 @@ table.grid tr.off td { opacity: .5; }
 .toasts { position: fixed; right: 12px; bottom: 12px; display: grid; gap: 6px; z-index: 9000; }
 .toast { background: var(--panel); border: 1px solid var(--bd); border-left: 4px solid var(--acc); border-radius: 6px; padding: 8px 12px; max-width: 380px; box-shadow: 0 6px 20px rgba(0, 0, 0, .5); }
 .toast.fence-in { border-left-color: var(--ok); } .toast.fence-out { border-left-color: var(--warn); }
+.toast.network { border-left-color: var(--warn); } .toast.network-ok { border-left-color: var(--ok); }
 
 @media (max-width: 900px) {
   .split, .split.log { grid-template-columns: 1fr; }

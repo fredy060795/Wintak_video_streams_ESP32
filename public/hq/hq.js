@@ -127,6 +127,9 @@ function notify(e) {
     beep();
   } else if (e.alert && /^fence/.test(e.kind)) {
     toast(e.text, e.kind);
+  } else if (e.kind === 'network' || e.kind === 'network-ok') { // gateway silent, radio not heard, battery low (admin → Network)
+    toast(e.text, e.kind);
+    if (e.alert) beep();
   }
 }
 $('alertOk').addEventListener('click', () => $('alert').classList.add('hidden'));
