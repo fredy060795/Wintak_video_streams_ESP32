@@ -309,6 +309,14 @@ async function radioPortAgain(old, info, ms = 40000) {
 
 // after the flash, over the radio's serial API (Meshtastic runs now; waits for its first start): the address of this
 // TAKweb server (the radio page offers "TAKweb online" with it) and the mesh channel
+async function syncPages(inst, chip) {
+  const mapQ = chip === 'esp32s3' ? '?map=full' : '';
+  const want = await (await fetch('/api/eud/meshsite' + mapQ, { cache: 'no-store' })).json();
+  const n = await inst.syncPages(want, async name => new Uint8Array(await (await fetch('/api/eud/meshsite/' + encodeURIComponent(name) + mapQ, { cache: 'no-store' })).arrayBuffer()),
+    { onProgress: (done, total) => suSay(`Updating the radio's pages: ${Math.round(done * 100 / total)} %`), log: t => log(t + '\n') });
+  log(n ? `TAKweb pages updated to ${want.version}\n` : `TAKweb pages on the radio are current (${want.version})\n`);
+}
+
 async function finishRadio(port, url, server, invite, ap, net = {}) {
   let inst = null;
   const link = new MI.SerialLink(port, frame => { try { inst.feed(P.parseFromRadio(frame)); } catch (e) { /* not for us */ } });
@@ -318,7 +326,9 @@ async function finishRadio(port, url, server, invite, ap, net = {}) {
     let st = null;
     for (let t = 0; t < 4 && !st; t++) { try { st = await inst.readState(); } catch (e) { log('Radio still starting …\n'); await sleep(3000); } }
     if (!st) throw new Error('The radio does not answer – it may still be starting. The firmware is on it; set the channel later in TAKweb (Meshtastic → Channel from a link).');
-    if (!st.files.some(f => /static\/index\.html\.gz$/.test(f.name))) log('Warning: TAKweb pages not found on the radio.\n');
+    // the pages in the firmware's file system are as old as that firmware build – bring them to this server's version
+    // (only what differs; same gzip = same size), otherwise the radio keeps old pages that ignore the server address
+    try { await syncPages(inst, net.chip); } catch (e) { log('Pages not updated: ' + (e.message || e) + '\n'); }
     if (server) {
       await inst.put('/static/takweb-server.json', new TextEncoder().encode(JSON.stringify(invite ? { server, invite } : { server })));
       log(`TAKweb server on the radio: ${server}${invite ? ' (with the TAK user)' : ''}\n`);
@@ -423,7 +433,7 @@ $('suGo').addEventListener('click', async () => {
       mqtt = { address: m.address, username: m.username, password: m.password, root: m.root, tls: m.tls };
     }
     let node;
-    ({ names, ssid, node } = await finishRadio(p2, chan, server, invite, ap, { mqtt, gateway }));
+    ({ names, ssid, node } = await finishRadio(p2, chan, server, invite, ap, { mqtt, gateway, chip: d.chip }));
     // known in admin → Network (role, WLAN name) by its node id
     api('mesh-radios', { method: 'POST', body: { node: P.nodeId(node), name: radioName(d), ssid, role: gateway ? 'gateway' : 'field', mqtt: !!mqtt } }).catch(() => {});
     if (who) loadSetupUsers();

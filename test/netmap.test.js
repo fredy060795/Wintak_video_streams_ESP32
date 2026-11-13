@@ -82,3 +82,65 @@ test('netmap: coverage cells – internet, mesh only, broken off; once a minute 
   net.clear();
   assert.equal(net.picture().cells.length, 0);
 });
+
+test('netmap: WebTAK Server names the MQTT gateway – exact line with hops, the radio counts as gateway', () => {
+  const { net, feed } = make();
+  const mq = (uid, lat, lon, id, gw, hops) => ots(uid, lat, lon, id).replace('</detail>', `<__mqtt gateway="!${gw}" channel="TAK" hops="${hops}" snr="5.0" rssi="-90"/></detail>`);
+  feed(mq('0000c0de', 47.2, 11.2, '0000c0de', '0000c0de', 0)); // the gateway radio itself
+  feed(mq('ANDROID-9', 47.3, 11.3, '00000009', '0000c0de', 2));
+  feed(ots('0000f00d', 47.0, 11.0, '0000f00d'));                // another radio, not uplinking (OTS-style, no gateway named)
+  const p = net.picture();
+  const k = Object.fromEntries(p.nodes.map(n => [n.uid, n]));
+  assert.equal(k['0000c0de'].kind, 'gateway');
+  assert.equal(k['0000c0de'].gatewayType, 'radio');
+  assert.equal(k['0000c0de'].traffic, 2);
+  assert.equal(k['ANDROID-9'].gateway, '0000c0de');
+  const e = p.edges.find(x => x.from === 'ANDROID-9');
+  assert.deepEqual([e.to, e.kind, e.assumed, e.hops], ['0000c0de', 'mqtt', undefined, 2]);
+  assert.equal(p.edges.find(x => x.from === '0000f00d').assumed, true, 'without a named gateway: nearest, assumed');
+});
+
+test('netmap: radio quality per cell, radios from WebTAK Server without GPS, alarms once while they last', () => {
+  const radios = { '0000c0de': { role: 'gateway', name: 'Roof' }, '0000aaaa': { role: 'field', name: 'Tracker' } };
+  const { net, feed } = make(radios);
+  const mq = (uid, lat, lon, id, gw, hops, snr) => ots(uid, lat, lon, id).replace('</detail>', `<__mqtt gateway="!${gw}" channel="TAK" hops="${hops}" snr="${snr}" rssi="-90"/></detail>`);
+  feed(mq('ANDROID-1', 47.2001, 11.2001, '00000001', '0000c0de', 0, 7.5));
+  feed(mq('ANDROID-2', 47.3001, 11.3001, '00000002', '0000c0de', 2, 1));
+  let p = net.picture();
+  const q = Object.fromEntries(p.quality.map(c => [cellKey(c[0] + 1e-6, c[1] + 1e-6), c]));
+  assert.deepEqual(q[cellKey(47.2001, 11.2001)].slice(2, 5), [0, 7.5, 1]);
+  assert.deepEqual(q[cellKey(47.3001, 11.3001)].slice(2, 4), [2, null], 'relayed: no SNR');
+  // WebTAK Server: the roof gateway has no GPS, the tracker was heard 40 min ago with 10 % battery
+  const t0 = Date.now();
+  net.status = {
+    gateways: [{ gateway: '!0000c0de', channel: 'TAK', packets: 50, last: new Date(t0).toISOString() }],
+    nodes: [{ id: '!0000c0de', longName: 'Roof', heard: new Date(t0).toISOString(), gateway: '!0000c0de', hops: 0 },
+      { id: '!0000aaaa', longName: 'Tracker', heard: new Date(t0 - 40 * 60000).toISOString(), gateway: '!0000c0de', hops: 1, battery: 10 }],
+  };
+  p = net.picture(t0);
+  assert.equal(p.mesh.gateways[0].located, false, 'no position');
+  assert.equal(p.mesh.gateways[0].name, 'Roof');
+  assert.equal(p.radios.find(r => r.node === '0000aaaa').seen, t0 - 40 * 60000);
+  let alarms = net.check(t0).map(a => a.text);
+  assert.ok(alarms.some(a => /Radio Tracker not heard for 40 min/.test(a)), alarms.join(' | '));
+  assert.ok(alarms.some(a => /Battery low: Tracker 10 %/.test(a)));
+  assert.ok(!alarms.some(a => /Gateway Roof/.test(a)), 'gateway fine');
+  assert.deepEqual(net.check(t0 + 60000).filter(a => a.alert), [], 'reported once');
+  // 20 min later nothing more from the gateway -> alarm; then it is back
+  alarms = net.check(t0 + 20 * 60000).map(a => a.text);
+  assert.ok(alarms.some(a => /Gateway Roof silent for 20 min/.test(a)), alarms.join(' | '));
+  net.status.gateways[0].last = new Date(t0 + 21 * 60000).toISOString();
+  alarms = net.check(t0 + 21 * 60000);
+  assert.ok(alarms.some(a => !a.alert && /Gateway Roof is back/.test(a.text)));
+  assert.ok(net.picture().alarms.length >= 4);
+});
+
+test('netmap: a phone gateway that goes offline raises an alarm', () => {
+  const { net, feed, hq } = make();
+  feed(pli('PHONE-GW', 47.0, 11.0, '<__takwebnet radio="ble" bridge="1" node="!12345678"/>'));
+  const t0 = Date.now();
+  assert.deepEqual(net.check(t0), []);
+  hq.live.get('PHONE-GW').stale = t0 - 1; hq.live.get('PHONE-GW').time = t0 - 200000;
+  const a = net.check(t0 + 16 * 60000);
+  assert.ok(a.some(x => x.alert && /PHONE-GW \(phone gateway\) silent/.test(x.text)), JSON.stringify(a));
+});

@@ -513,13 +513,14 @@
       <p class="mut small">Live from your TAK server (the HQ connection): which device is online over its own internet, which one only over
         the mesh, and which devices are <b>gateways</b> – TAKweb phones with a radio and "gateway" on, and radios set up as
         <b>HQ gateway</b> (MQTT). Lines show the way: <span class="nw-k lora"></span> LoRa → phone gateway,
-        <span class="nw-k mqtt"></span> LoRa → MQTT gateway (OTS does not say which radio uplinked – the nearest HQ gateway is
-        assumed). The coverage layer collects over time where internet worked, where only the mesh reached the server and
+        <span class="nw-k mqtt"></span> LoRa → MQTT gateway (WebTAK Server names the radio that uplinked, with the hops;
+        OpenTAKServer does not – then the nearest HQ gateway is assumed, dashed). The coverage layer collects over time where internet worked, where only the mesh reached the server and
         where connections broke off – so you see where gateways are needed.</p>
       <p class="msg" id="nwMsg"></p>
       <div class="nw-stats" id="nwStats"></div>
       <div class="row nw-tools">
         <label class="check"><input type="checkbox" id="nwCover" checked> Coverage over time</label>
+        <label class="check"><input type="checkbox" id="nwQuality"> Radio quality (hops, signal)</label>
         <label class="check"><input type="checkbox" id="nwLines" checked> Connections</label>
         <label class="check"><input type="checkbox" id="nwOffline"> Offline devices</label>
         <button type="button" id="nwFit">Fit all</button>
@@ -534,9 +535,17 @@
         <span><i class="nw-sq inet"></i>Internet worked here</span>
         <span><i class="nw-sq mesh"></i>Only mesh here – gateway needed for internet</span>
         <span><i class="nw-sq lost"></i>Connection broke off here</span>
+        <span class="nw-qleg hidden"><i class="nw-sq q0"></i>Gateway hears it directly (good signal)</span>
+        <span class="nw-qleg hidden"><i class="nw-sq q0w"></i>directly, weak signal</span>
+        <span class="nw-qleg hidden"><i class="nw-sq q1"></i>1 hop</span>
+        <span class="nw-qleg hidden"><i class="nw-sq q2"></i>2+ hops – a relay radio would help</span>
       </div>
+      <h3>Alarms <span class="mut small">(also on the HQ page: gateway silent 15 min, radio not heard 30 min, battery ≤ 15 %)</span></h3>
+      <ul class="nw-alarms" id="nwAlarms"></ul>
       <h3>Gateways</h3>
-      <table class="streams"><thead><tr><th>Gateway</th><th>Type</th><th>Passes on (15 min)</th><th>Last heard</th></tr></thead><tbody id="nwGws"></tbody></table>
+      <table class="streams"><thead><tr><th>Gateway</th><th>Type</th><th>Passes on</th><th>Last heard</th></tr></thead><tbody id="nwGws"></tbody></table>
+      <h3 id="nwHeardH" class="hidden">Radios heard over MQTT <span class="mut small">(from WebTAK Server – also without GPS)</span></h3>
+      <table class="streams hidden" id="nwHeardT"><thead><tr><th>Radio</th><th>Via</th><th>Signal at the gateway</th><th>Battery</th><th>Last heard</th></tr></thead><tbody id="nwHeard"></tbody></table>
       <h3>Radios set up here</h3>
       <table class="streams"><thead><tr><th>Radio</th><th>Node</th><th>Role</th><th>WLAN</th><th>Status</th><th></th></tr></thead><tbody id="nwRadios"></tbody></table>
     </section>

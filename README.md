@@ -545,7 +545,17 @@ versions), update only, the files to download (.uf2 for nRF52/RP2040).
   not say which radio uplinked – the nearest HQ gateway is assumed). The coverage layer collects over time where
   internet worked, where only the mesh reached the server and where connections broke off (≈ 500 m squares) – where it
   is orange or red, a gateway is needed. Gateways with their traffic (15 min) and the radios set up in the admin (role,
-  WLAN) are listed below the map. Needs the HQ connection to the TAK server (OTS).
+  WLAN) are listed below the map. Needs the HQ connection to the TAK server. With **WebTAK Server**
+  (fredy060795/5040-WebTAK_Server) the server names the radio that uplinked each packet and the hops – the MQTT lines
+  are then exact, not assumed.
+- **Radio quality and alarms (admin → Network):** the layer *Radio quality* shows per square how the radios there reached
+  a gateway – directly (with the best signal) or over 1, 2+ hops (there a relay radio helps). With WebTAK Server the
+  network view also lists every radio heard over MQTT – gateways on a roof without GPS too – with signal and battery.
+  Alarms on the HQ page and in the situation log: a gateway silent for 15 min, a radio set up here not heard for
+  30 min, a battery at 15 % or less (each once, and once more when it is over).
+- **Without OpenTAKServer:** TAKweb works the same with **WebTAK Server** as TAK server – it speaks the OTS web API
+  (users, groups, QR enrollment, missions, video, Meshtastic channels) and has the MQTT broker for the radios built in.
+  Under "Settings → OpenTAKServer & registration" enter `https://<server>:8443` with its admin login.
 
 ## Mission tracks (record & replay)
 

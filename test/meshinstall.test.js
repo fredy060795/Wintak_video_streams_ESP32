@@ -218,3 +218,22 @@ test('MQTT to the server, GPS position, OK to MQTT – the radio reports itself 
   const fr = W().msg(5, W().msg(2, { done: () => old })).done();
   assert.deepEqual([...P.parseFromRadio(fr).position], [...old]);
 });
+
+test('installer: pages from an old firmware build are brought to the server version (only what differs, start page last)', async () => {
+  const old = meshsite.build('1.0.0-old');
+  const now = meshsite.build('1.0.0-new', 'https://tak.example.org/eud/');
+  const files = Object.fromEntries(old.files.map(f => ['/static/' + f.name + '.gz', f.gz]));
+  files['/static/gone.js.gz'] = Buffer.from('x');
+  files['/prefs/config.proto'] = Buffer.from('c');
+  const radio = new FakeRadio({ files });
+  const inst = connect(radio);
+  const want = { version: now.version, files: now.files.map(f => ({ name: f.name, gz: f.gz.length })) };
+  const asked = [];
+  const n = await inst.syncPages(want, async name => { asked.push(name); return now.files.find(f => f.name === name).gz; });
+  assert.ok(n >= 1 && n < now.files.length, `only the changed files: ${asked.join(', ')}`);
+  assert.equal(asked[asked.length - 1], 'index.html', 'start page last (it names the server)');
+  for (const f of now.files) assert.deepEqual(radio.fs.get('/static/' + f.name + '.gz'), f.gz, f.name);
+  assert.ok(!radio.fs.has('/static/gone.js.gz'), 'old file removed');
+  assert.ok(radio.fs.has('/prefs/config.proto'), 'settings stay');
+  assert.equal(await inst.syncPages(want, async () => { throw new Error('nothing to load'); }), 0, 'second time: current');
+});

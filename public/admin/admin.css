@@ -255,3 +255,10 @@ button.su-go { font-size: 1.15em; padding: 12px 22px; }
 .nw-ic div { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 4px #000; }
 .nw-ic.gateway div { border-radius: 3px; transform: rotate(45deg); width: 18px; height: 18px; }
 .nw-ic .gwmqtt { outline: 2px dashed #c58cff; outline-offset: 2px; }
+
+.nw-sq.q0 { background: rgba(61,220,75,.55); } .nw-sq.q0w { background: rgba(160,220,60,.55); }
+.nw-sq.q1 { background: rgba(246,195,68,.55); } .nw-sq.q2 { background: rgba(255,120,40,.6); }
+.nw-alarms { list-style: none; padding: 0; margin: 4px 0 8px; max-height: 180px; overflow: auto; font-size: 13px; }
+.nw-alarms li { border-left: 3px solid var(--warn); padding: 3px 8px; margin: 2px 0; background: var(--hover); }
+.nw-alarms li.ok { border-left-color: var(--ok); }
+.nw-alarms time { color: var(--mut); margin-right: 8px; }
